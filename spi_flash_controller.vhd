@@ -16,6 +16,8 @@ entity spi_flash_controller is
 			i_data : in std_ulogic_vector(7 downto 0);
 			o_data : out std_ulogic_vector(7 downto 0);
 			o_byte_tx_done : out std_ulogic;
+			o_byte_rx_done : out std_ulogic;
+			o_dv : out std_ulogic;
 
 			--flash interface
 			o_c : out std_ulogic;			--serial clock
@@ -58,6 +60,8 @@ architecture rtl of spi_flash_controller is
 
 	signal w_tx_done : std_ulogic;
 	signal w_addr_done : std_ulogic;
+	signal w_cmd_done : std_ulogic;
+	signal w_rx_underway : std_ulogic;
 	signal w_new_data_to_tx : std_ulogic;
 	signal w_rx_done : std_ulogic;
 	signal w_new_rx_req : std_ulogic;
@@ -90,16 +94,13 @@ begin
 	begin
 		if(i_arstn = '0') then
 			w_cnt_tx_neg <= (others => '0');
-			--w_tx_done_neg <= '0';
 		elsif (falling_edge(w_sclk)) then
 			if(w_ss_n = '0') then
 				w_cnt_tx_neg_r <= w_cnt_tx_neg;
 				if(w_cnt_tx_neg = 7) then
 					w_cnt_tx_neg <= (others => '0');
-					--w_tx_done_neg <= '1';
 				else
 					w_cnt_tx_neg <= w_cnt_tx_neg +1;
-					--w_tx_done_neg <= '0';
 				end if;
 			end if;
 		end if;	
@@ -125,24 +126,19 @@ begin
 	begin
 		if(i_arstn = '0') then
 			w_cnt_rx_pos <= (others => '0');
-			--w_rx_done_pos <= '0';
 		elsif (rising_edge(w_sclk)) then
 			if(w_ss_n = '0') then
 				w_cnt_rx_pos_r <= w_cnt_rx_pos;
 				if(w_cnt_rx_pos = 7) then
 					w_cnt_rx_pos <= (others => '0');
-					--w_rx_done_pos <= '1';
 				else
 					w_cnt_rx_pos <= w_cnt_rx_pos +1;
-					--w_rx_done_pos <= '0';
 				end if;
 			end if;
 		end if;
 	end process; -- cnt_bits_rx_pos
 
 
-
-	--w_cont <= '1' when (w_state = WAIT1 or w_state = WAIT2 or w_state = WAIT3 or (w_new_data_to_tx = '1' and w_state = TX_DATA) or  (w_new_rx_req = '1' and w_state = RX_DATA)) else '0';
 	w_cont <= '1' when (w_state = WAIT1 or w_state = WAIT2 or w_state = WAIT3 or w_state = WAIT4 or w_state = WAIT6 or w_state = WAIT7 or w_state = TX_DATA or w_state = TX_DUMMY or w_state = RX_DATA or w_state = TX_ADDR_H or w_state = TX_ADDR_M or w_state = TX_ADDR_L) else '0';
 
 	o_c <= w_sclk;
@@ -176,8 +172,8 @@ begin
 				cmd_reg <= i_data;
 			elsif (unsigned(i_addr) = 1 and i_we = '1') then
 				data_tx_reg <= i_data;
-			elsif (unsigned(i_addr) = 1 and i_we = '0') then
-				o_data <= w_data_read;
+			--elsif (unsigned(i_addr) = 1 and i_we = '0') then
+			--	o_data <= w_data_read;
 			elsif (unsigned(i_addr) = 2 and i_we = '1') then
 				addr_h_reg <= i_data;
 			elsif (unsigned(i_addr) = 3 and i_we = '1') then
@@ -193,7 +189,7 @@ begin
 		if(i_arstn = '0') then
 			w_new_data_to_tx <= '0';
 		elsif (rising_edge(i_clk)) then
-			if(w_tx_done ='1') then              --<----------------------------------------------------
+			if(w_tx_done ='1') then             
 				w_new_data_to_tx <= '0';
 			elsif (unsigned(i_addr) = 1 and i_we = '1') then
 				w_new_data_to_tx <= '1';
@@ -206,9 +202,9 @@ begin
 		if(i_arstn = '0') then 
 			w_new_rx_req <= '0';
 		elsif(rising_edge(i_clk)) then
-			if(w_rx_done = '1') then              --<----------------------------------------------------
+			if(w_rx_done = '1') then             
 				w_new_rx_req <= '0';
-			elsif (unsigned(i_addr) = 1 and i_we = '0') then
+			elsif (unsigned(i_addr) = 5 and i_we = '0') then
 				w_new_rx_req <= '1';
 			end if;
 		end if;
@@ -216,6 +212,7 @@ begin
 
 
 	o_byte_tx_done <= w_tx_done;
+	o_byte_rx_done <= w_rx_done;
 
 	flash_cmd_FSM : process(i_clk,i_arstn) is
 	begin
@@ -224,10 +221,14 @@ begin
 			w_dv <= '0';
 			w_data_sreg <= (others => '1');
 			w_addr_done <= '0';
+			w_cmd_done <= '0';
+			w_rx_underway <= '0';
+			o_dv <= '0';
 		elsif (rising_edge(i_clk)) then
 			w_tx_done <= '0';
 			w_rx_done <= '0';
 			w_dv <= '0';
+			o_dv <= '0';
 			case w_state is 
 				when IDLE =>
 					w_data_sreg <= (others => '1');
@@ -236,11 +237,16 @@ begin
 							w_state <= IDLE;
 						when others => 
 							w_state <= TX_CMD;
-							w_dv <= '1';
-							w_data_sreg <= cmd_reg;
 					end case;
 				when TX_CMD =>
-					if(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7) then
+					w_dv <= '1';
+					w_data_sreg <= cmd_reg;
+					if(w_cnt_tx_neg = 1) then
+						w_cmd_done <= '1';
+					end if;
+					if(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7 and w_cmd_done = '1') then
+						w_tx_done <= '1';
+						w_cmd_done <= '0';
 						case cmd_reg is 
 							when PAGE_PROGRAM | SECTOR_ERASE | RD_DATA | F_RD_DATA | WR_STATUS_REG | RD_STATUS_REG =>
 								w_state <= WAIT1;
@@ -286,7 +292,7 @@ begin
 						w_state <= WAIT8;
 					end if;
 				when TX_DATA =>
-					if(w_cnt_tx_neg =1) then                  --<_--------------------------
+					if(w_cnt_tx_neg =1) then                 
 						w_tx_done <= '1';
 					elsif(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7) then
 						case cmd_reg is 
@@ -299,14 +305,16 @@ begin
 				when RX_DATA =>
 					if(w_cnt_rx_pos =1) then	
 						w_rx_done <= '1';
-					elsif(w_cnt_rx_pos = 0 and w_cnt_rx_pos_r = 7) then
+						w_rx_underway <= '1';
+					elsif(w_cnt_rx_pos = 0 and w_cnt_rx_pos_r = 7 and w_rx_underway = '1') then
+						w_rx_underway <= '0';
 						case cmd_reg is 
 							when RD_DATA | F_RD_DATA =>
 								w_state <= WAIT7;
 							when RD_STATUS_REG =>
 								w_state <= 	WAIT5;					
 							when others => 
-								w_state <= CLEAR_CMD;
+								w_state <= WAIT8;
 						end case;
 					end if;
 				when WAIT1 =>
@@ -350,10 +358,13 @@ begin
 						when others =>
 							w_state <= CLEAR_CMD;
 					end case;
-				--when WAIT7 =>
-				--	w_state <= WAIT8;
+				when WAIT8 =>
+					w_data_read <= w_sr_rx_pos_sclk;
+					w_state <= CLEAR_CMD;
 				when WAIT7 =>
-					w_data_read <= w_sr_rx_pos_sclk;	----<--------1 cycle later?
+					w_data_read <= w_sr_rx_pos_sclk;
+					o_data <= w_sr_rx_pos_sclk;
+					o_dv <= '1';
 					case cmd_reg is
 						when RD_DATA | F_RD_DATA =>
 							if(w_new_rx_req = '1') then

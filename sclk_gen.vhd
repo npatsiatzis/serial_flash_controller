@@ -133,9 +133,9 @@ begin
 				when DATA_TX =>	
 					if(w_continue = '1' and w_sclk_falling_edges = 0) then
 						w_cnt_falling_edges <= '1';
-					elsif(w_continue = '1' and w_sclk_falling_edges = g_data_width-1 and i_cont = '1') then
+					elsif(w_continue = '1' and w_sclk_falling_edges = g_data_width and i_cont = '1') then
 						w_cnt_falling_edges <= '0';
-					elsif(w_continue = '1' and w_sclk_falling_edges = g_data_width -1 and i_cont = '0') then
+					elsif(w_continue = '1' and w_sclk_falling_edges = g_data_width  and i_cont = '0') then
 						w_continue <= '0';
 						w_state <= TALINING_DELAY;
 						w_cnt_delay_start <= '1';
