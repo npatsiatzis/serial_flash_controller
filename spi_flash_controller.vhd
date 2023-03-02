@@ -155,10 +155,21 @@ begin
 			i_leading_cycles =>std_ulogic_vector(to_unsigned(5,8)),
 			i_tailing_cycles =>std_ulogic_vector(to_unsigned(0,8)),
 			i_iddling_cycles =>std_ulogic_vector(to_unsigned(0,8)),
-			i_pol => '1',
+			i_pol => '1',			--can also change this to 0 to go for spi mode 0 (default here 3)
 			o_ss_n => w_ss_n,
 			o_sclk => w_sclk
 		);
+
+	----Apart for setting i_pol = '0', this is one extra necessary change to support mode 0.
+
+	--mosi_neg_00 : process(all) is
+	--begin
+	--	if(i_arstn = '0') then
+	--		o_dq <= '1';
+	--	else
+	--		o_dq <= w_data_sreg(to_integer((7 - w_cnt_tx_neg)));
+	--	end if;
+	--end process; -- mosi_neg_00
 
 	manage_regs : process(i_clk,i_arstn) is
 	begin
