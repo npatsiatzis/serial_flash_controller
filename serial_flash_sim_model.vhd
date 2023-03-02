@@ -71,7 +71,7 @@ begin
 					elsif (w_sr_rx_pos_sclk = "00000100") then
 						w_status_reg(1) <= '0';
 						w_sr_rx_pos_sclk <= w_status_reg(6 downto 0) & i_dq;
-					elsif ((w_sr_rx_pos_sclk = "11011000" or w_sr_rx_pos_sclk = "11000111") and w_status_reg(1) = '1') then
+					elsif (w_sr_rx_pos_sclk = "11000111" and w_status_reg(1) = '1') then
 						for i in 0 to 255 loop 
 							mem(i) <= (others => '1');
 						end loop;
@@ -123,8 +123,10 @@ begin
 						w_cnt_rx_pos <= (others => '0');
 						w_state <= RD_DATA;
 						w_status_reg <= w_status_reg(6 downto 0) & i_dq;
-					elsif ((w_sr_rx_pos_sclk = "11011000" or w_sr_rx_pos_sclk = "11000111") and w_status_reg(1) = '1') then
+					elsif (w_sr_rx_pos_sclk = "11000111" and w_status_reg(1) = '1') then
 						w_state <= RD_CMD;
+					elsif (w_sr_rx_pos_sclk = "11011000" and w_status_reg(1) = '1') then
+						w_state <= RD_ADDR_H;
 					end if;
 				when RD_ADDR_H =>
 					if(i_s_n = '0') then
@@ -196,7 +198,10 @@ begin
 						w_pointer <= w_sr_rx_pos_sclk;
 						o_dq <= mem(to_integer(unsigned(w_sr_rx_pos_sclk)))(7);
 						w_cnt_tx_neg <= to_unsigned(1,w_cnt_tx_neg'length);
-
+					elsif (w_cmd_reg = "11011000") then
+						for i in 0 to 255 loop 
+							mem(i) <= (others => '1');
+						end loop;
 					end if;
 
 				when RD_DATA =>
