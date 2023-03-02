@@ -50,6 +50,9 @@ begin
 			w_cnt_rx_pos <= (others => '0');
 			o_dq <= '1';
 			w_cnt_tx_neg <= (others => '0');
+			for i in 0 to 255 loop 
+				mem(i) <= (others => '1');
+			end loop;
 		elsif(i_s_n = '1') then
 			w_state <= IDLE;
 			o_dq <= '1';
@@ -61,6 +64,11 @@ begin
 			case w_state is 
 				when MNG_CMD =>
 					w_cmd_reg <= w_sr_rx_pos_sclk;
+					if (w_sr_rx_pos_sclk = "11011000" or w_sr_rx_pos_sclk = "11000111") then
+						for i in 0 to 255 loop 
+							mem(i) <= (others => '1');
+						end loop;
+					end if;
 				when MNG_RD_DATA =>
 					mem(to_integer(unsigned(w_pointer))) <= w_sr_rx_pos_sclk;
 				when RD_DATA =>
@@ -75,6 +83,7 @@ begin
 				when IDLE =>
 					if(i_s_n = '0') then
 						w_state <= RD_CMD;
+						w_sr_rx_pos_sclk <= w_sr_rx_pos_sclk(6 downto 0) & i_dq;
 					end if;
 				when RD_CMD =>
 					if(i_s_n = '0') then
@@ -94,6 +103,11 @@ begin
 					if(w_sr_rx_pos_sclk = "00000010" or w_sr_rx_pos_sclk = "00000011") then
 						w_state <= RD_ADDR_H;
 					elsif (w_sr_rx_pos_sclk = "00000110") then
+						w_state <= RD_CMD;
+					elsif (w_sr_rx_pos_sclk = "11011000" or w_sr_rx_pos_sclk = "11000111") then
+						for i in 0 to 255 loop 
+							mem(i) <= (others => '1');
+						end loop;
 						w_state <= RD_CMD;
 					end if;
 				when RD_ADDR_H =>

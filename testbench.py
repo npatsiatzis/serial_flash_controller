@@ -34,6 +34,179 @@ async def reset(dut,cycles=1):
 
 
 @cocotb.test()
+async def test_erase(dut):
+	"""Check results for serial flash controller of bulk erase command after writing and reading the flash"""
+	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
+	await reset(dut,5)	
+
+	lst = []
+
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 0 
+	dut.i_data.value = 6		# cmd WR ENABLE
+
+	await RisingEdge(dut.i_clk)
+
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	for i in range(5):
+	
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 2		# cmd page program
+
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+		addr = random.randint(165,2**8-1)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 2 
+		dut.i_data.value = 0		# addr high
+
+		await RisingEdge(dut.i_clk)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 3 
+		dut.i_data.value = 0		# addr m
+
+		await RisingEdge(dut.i_clk)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 4 
+		dut.i_data.value = addr		# addr low
+
+		await RisingEdge(dut.i_clk)
+
+		data = random.randint(165,2**8-1)
+		lst.append(data)
+		dut.i_we.value = 1
+		dut.i_addr.value = 1
+		dut.i_data.value = data 
+		await RisingEdge(dut.i_clk)
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 7
+		dut.i_data.value = 255
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0
+		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		await ClockCycles(dut.i_clk,5)
+
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 3		# cmd RD data
+		await RisingEdge(dut.i_clk)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 2 
+		dut.i_data.value = 0		# addr high
+
+		await RisingEdge(dut.i_clk)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 3 
+		dut.i_data.value = 0		# addr m
+
+		await RisingEdge(dut.i_clk)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 4 
+		dut.i_data.value = addr		# addr low
+
+		await RisingEdge(dut.i_clk)
+
+		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 255		# NOP command
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_dv)
+		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
+
+	await ClockCycles(dut.i_clk,5)
+
+
+	# dut.i_we.value = 1
+	# dut.i_addr.value = 0 
+	# dut.i_data.value = 199		# cmd bulk erase (no need to specify A23-A0)
+
+	#or go for an erase of a specific sector (specify sector by A23-A0)
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 0 
+	dut.i_data.value = 216		# cmd sector erase
+
+	await RisingEdge(dut.i_clk)
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	addr = random.randint(165,2**8-1)
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 2 
+	dut.i_data.value = 0		# addr high
+
+	await RisingEdge(dut.i_clk)
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 3 
+	dut.i_data.value = 0		# addr m
+
+	await RisingEdge(dut.i_clk)
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 4 
+	dut.i_data.value = addr		# addr low
+
+
+
+	await RisingEdge(dut.i_clk)
+
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 0 
+	dut.i_data.value = 3		# cmd RD data
+	await RisingEdge(dut.i_clk)
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 2 
+	dut.i_data.value = 0		# addr high
+
+	await RisingEdge(dut.i_clk)
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 3 
+	dut.i_data.value = 0		# addr m
+
+	await RisingEdge(dut.i_clk)
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 4 
+	dut.i_data.value = addr		# addr low
+
+	await RisingEdge(dut.i_clk)
+
+	await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
+	dut.i_we.value = 1
+	dut.i_addr.value = 0 
+	dut.i_data.value = 255		# NOP command
+	await RisingEdge(dut.i_clk)
+	await FallingEdge(dut.o_dv)
+	assert not (255 != int(dut.o_data.value)),"Different expected to actual read data"
+
+	await ClockCycles(dut.i_clk,5)
+
+@cocotb.test()
 async def test_single_r_w(dut):
 	"""Check results for serial flash controller writing and reading 1 item at a time"""
 	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
@@ -125,20 +298,12 @@ async def test_single_r_w(dut):
 		await RisingEdge(dut.i_clk)
 
 		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
-		dut.i_we.value = 0
-		dut.i_addr.value = 5 
-		dut.i_data.value = 0		# data to rx
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 255		# NOP command
 		await RisingEdge(dut.i_clk)
 		await FallingEdge(dut.o_dv)
 		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
-
-
-		dut.i_we.value = 1
-		dut.i_addr.value = 0
-		dut.i_data.value = 255
-		await RisingEdge(dut.i_clk)
-		await ClockCycles(dut.i_clk,5)
-
 
 
 

@@ -336,6 +336,7 @@ begin
 					w_state <= TX_ADDR_L;
 					w_data_sreg <= addr_l_reg;
 				when WAIT4 =>
+					w_tx_done <= '1';
 					case cmd_reg is 
 						when F_RD_DATA =>
 							w_state <= TX_DUMMY;
@@ -359,6 +360,8 @@ begin
 							w_state <= CLEAR_CMD;
 					end case;
 				when WAIT8 =>
+					o_data <= w_sr_rx_pos_sclk;
+					o_dv <= '1';
 					w_data_read <= w_sr_rx_pos_sclk;
 					w_state <= CLEAR_CMD;
 				when WAIT7 =>
