@@ -4,6 +4,7 @@ from cocotb.triggers import Timer,RisingEdge,FallingEdge,ClockCycles,ReadWrite
 from cocotb.result import TestFailure
 import random
 from cocotb_coverage.coverage import CoverPoint,coverage_db
+from cocotb.binary import BinaryValue
 
 covered_valued = []
 g_sys_clk = int(cocotb.top.g_sys_clk)
@@ -31,6 +32,76 @@ async def reset(dut,cycles=1):
 	dut.i_arstn.value = 1
 	await RisingEdge(dut.i_clk)
 	dut._log.info("the core was reset")
+
+
+@cocotb.test()
+async def test_status_reg(dut):
+	"""Check results for serial flash controller writing and reading the status register"""
+	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
+	await reset(dut,5)	
+
+
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 0 
+	dut.i_data.value = 6		# cmd WR ENABLE
+
+	await RisingEdge(dut.i_clk)
+
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	for i in range(5):
+	
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 1		# cmd write status register
+
+		await RisingEdge(dut.i_clk)
+
+		data = random.randint(100,2**8-1)
+		bin_data = BinaryValue(value=data)
+		while(bin_data.binstr[-2] == '0'):
+			data = random.randint(100,2**8-1)
+			bin_data = BinaryValue(value=data)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 1
+		dut.i_data.value = data
+		 
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 7
+		dut.i_data.value = 255
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0
+		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		await ClockCycles(dut.i_clk,5)
+
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 5		# cmd read status register
+		await RisingEdge(dut.i_clk)
+
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 255		# NOP command
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_dv)
+		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
+		await ClockCycles(dut.i_clk,5)
+
+
 
 
 @cocotb.test()

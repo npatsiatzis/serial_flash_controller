@@ -31,7 +31,7 @@ architecture rtl of spi_flash_controller is
 	constant SPI_CLK_CYCLES : natural := g_sys_clk / SPI_FREQ; 
 
 	type t_state is (IDLE, TX_CMD, TX_ADDR_H, TX_ADDR_M , TX_ADDR_L, TX_DUMMY, TX_DATA, RX_DATA,
-		WAIT1,WAIT2,WAIT3,WAIT4,WAIT5,WAIT6,WAIT7,WAIT8, CLEAR_CMD);
+		WAIT1,WAIT2,WAIT3,WAIT4,WAIT5,WAIT6,WAIT7, CLEAR_CMD);
 
 	signal w_state : t_state;
 
@@ -61,6 +61,7 @@ architecture rtl of spi_flash_controller is
 	signal w_tx_done : std_ulogic;
 	signal w_addr_done : std_ulogic;
 	signal w_cmd_done : std_ulogic;
+	signal w_tx_underway : std_ulogic;
 	signal w_rx_underway : std_ulogic;
 	signal w_new_data_to_tx : std_ulogic;
 	signal w_rx_done : std_ulogic;
@@ -223,6 +224,7 @@ begin
 			w_addr_done <= '0';
 			w_cmd_done <= '0';
 			w_rx_underway <= '0';
+			w_tx_underway <= '0';
 			o_dv <= '0';
 		elsif (rising_edge(i_clk)) then
 			w_tx_done <= '0';
@@ -289,12 +291,15 @@ begin
 				when TX_DUMMY =>
 					w_data_sreg <= (others => '0');
 					if(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7) then
-						w_state <= WAIT8;
+						--w_state <= WAIT8;
+						w_state <= WAIT5;
 					end if;
 				when TX_DATA =>
 					if(w_cnt_tx_neg =1) then                 
 						w_tx_done <= '1';
-					elsif(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7) then
+						w_tx_underway <= '1';
+					elsif(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7 and w_tx_underway = '1') then
+						w_tx_underway <= '0';
 						case cmd_reg is 
 							when PAGE_PROGRAM =>
 								w_state <= WAIT6;
@@ -311,10 +316,10 @@ begin
 						case cmd_reg is 
 							when RD_DATA | F_RD_DATA =>
 								w_state <= WAIT7;
-							when RD_STATUS_REG =>
-								w_state <= 	WAIT5;					
+							--when RD_STATUS_REG =>
+							--	w_state <= 	WAIT5;					
 							when others => 
-								w_state <= WAIT8;
+								w_state <= WAIT5;
 						end case;
 					end if;
 				when WAIT1 =>
@@ -324,6 +329,7 @@ begin
 							w_data_sreg <= addr_h_reg;
 						when WR_STATUS_REG => 
 							w_state <= TX_DATA;
+							w_data_sreg <= data_tx_reg;
 						when RD_STATUS_REG =>
 							w_state <= RX_DATA;
 						when others =>
@@ -346,6 +352,9 @@ begin
 							w_state <= CLEAR_CMD;
 					end case;
 				when WAIT5 =>
+					o_data <= w_sr_rx_pos_sclk;
+					o_dv <= '1';
+					w_data_read <= w_sr_rx_pos_sclk;
 					w_state <= CLEAR_CMD;
 				when WAIT6 =>
 					case cmd_reg is 
@@ -359,11 +368,11 @@ begin
 						when others =>
 							w_state <= CLEAR_CMD;
 					end case;
-				when WAIT8 =>
-					o_data <= w_sr_rx_pos_sclk;
-					o_dv <= '1';
-					w_data_read <= w_sr_rx_pos_sclk;
-					w_state <= CLEAR_CMD;
+				--when WAIT8 =>
+				--	o_data <= w_sr_rx_pos_sclk;
+				--	o_dv <= '1';
+				--	w_data_read <= w_sr_rx_pos_sclk;
+				--	w_state <= CLEAR_CMD;
 				when WAIT7 =>
 					w_data_read <= w_sr_rx_pos_sclk;
 					o_data <= w_sr_rx_pos_sclk;

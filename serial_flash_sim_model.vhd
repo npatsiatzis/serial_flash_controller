@@ -23,6 +23,7 @@ architecture rtl of serial_flash_sim_model is
 	type t_state is (IDLE, RD_CMD, MNG_CMD , RD_ADDR_H, MNG_ADDRH, RD_ADDR_M , MNG_ADDRM, RD_ADDR_L, MNG_ADDRL, RD_DATA, MNG_RD_DATA, TX_DATA, MNG_TX_DATA);
 
 	signal w_state : t_state;
+	signal w_status_reg : std_ulogic_vector(7 downto 0);
 
 	constant WR_ENABLE : std_ulogic_vector(7 downto 0) := "00000110";
 	constant WR_DISABLE : std_ulogic_vector(7 downto 0) := "00000100";
@@ -53,6 +54,7 @@ begin
 			for i in 0 to 255 loop 
 				mem(i) <= (others => '1');
 			end loop;
+			w_status_reg <= (others => '0');
 		elsif(i_s_n = '1') then
 			w_state <= IDLE;
 			o_dq <= '1';
@@ -64,7 +66,12 @@ begin
 			case w_state is 
 				when MNG_CMD =>
 					w_cmd_reg <= w_sr_rx_pos_sclk;
-					if (w_sr_rx_pos_sclk = "11011000" or w_sr_rx_pos_sclk = "11000111") then
+					if (w_sr_rx_pos_sclk = "00000110") then
+						w_status_reg(1) <= '1';
+					elsif (w_sr_rx_pos_sclk = "00000100") then
+						w_status_reg(1) <= '0';
+						w_sr_rx_pos_sclk <= w_status_reg(6 downto 0) & i_dq;
+					elsif ((w_sr_rx_pos_sclk = "11011000" or w_sr_rx_pos_sclk = "11000111") and w_status_reg(1) = '1') then
 						for i in 0 to 255 loop 
 							mem(i) <= (others => '1');
 						end loop;
@@ -100,14 +107,23 @@ begin
 				when MNG_CMD =>
 					w_cmd_reg <= w_sr_rx_pos_sclk;
 					w_sr_rx_pos_sclk <= w_sr_rx_pos_sclk(6 downto 0) & i_dq;
-					if(w_sr_rx_pos_sclk = "00000010" or w_sr_rx_pos_sclk = "00000011") then
+					if(w_sr_rx_pos_sclk = "00000010" and w_status_reg(1) = '1') then
+						w_state <= RD_ADDR_H;
+					elsif(w_sr_rx_pos_sclk = "00000011") then
 						w_state <= RD_ADDR_H;
 					elsif (w_sr_rx_pos_sclk = "00000110") then
 						w_state <= RD_CMD;
-					elsif (w_sr_rx_pos_sclk = "11011000" or w_sr_rx_pos_sclk = "11000111") then
-						for i in 0 to 255 loop 
-							mem(i) <= (others => '1');
-						end loop;
+					elsif (w_sr_rx_pos_sclk = "00000100") then
+						w_state <= RD_CMD;
+					elsif (w_sr_rx_pos_sclk = "00000101") then
+						w_state <= TX_DATA;
+						o_dq <= w_status_reg(to_integer(7 - w_cnt_tx_neg));
+						w_cnt_tx_neg <= to_unsigned(1,w_cnt_tx_neg'length);
+					elsif (w_sr_rx_pos_sclk = "00000001" and w_status_reg(1) = '1') then
+						w_cnt_rx_pos <= (others => '0');
+						w_state <= RD_DATA;
+						w_status_reg <= w_status_reg(6 downto 0) & i_dq;
+					elsif ((w_sr_rx_pos_sclk = "11011000" or w_sr_rx_pos_sclk = "11000111") and w_status_reg(1) = '1') then
 						w_state <= RD_CMD;
 					end if;
 				when RD_ADDR_H =>
@@ -185,7 +201,11 @@ begin
 
 				when RD_DATA =>
 					if(i_s_n = '0') then
-						w_sr_rx_pos_sclk <= w_sr_rx_pos_sclk(6 downto 0) & i_dq;
+						if (w_cmd_reg = "00000001") then
+							w_status_reg <= w_status_reg(6 downto 0) & i_dq;
+						else	
+							w_sr_rx_pos_sclk <= w_sr_rx_pos_sclk(6 downto 0) & i_dq;
+						end if;
 
 						w_cnt_rx_pos_r <= w_cnt_rx_pos;
 						if(w_cnt_rx_pos = 7) then
@@ -207,7 +227,11 @@ begin
 
 				when TX_DATA =>
 					if(i_s_n = '0') then
-						o_dq <= mem(to_integer(unsigned(w_pointer)))(to_integer((7 - w_cnt_tx_neg)));
+						if(w_cmd_reg = "00000101") then
+							o_dq <= w_status_reg(to_integer(7 - w_cnt_tx_neg));
+						else
+							o_dq <= mem(to_integer(unsigned(w_pointer)))(to_integer((7 - w_cnt_tx_neg)));
+						end if;
 						w_cnt_tx_neg_r <= w_cnt_tx_neg;
 						if(w_cnt_tx_neg = 7) then
 							w_cnt_tx_neg <= (others => '0');
