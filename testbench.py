@@ -35,6 +35,92 @@ async def reset(dut,cycles=1):
 
 
 @cocotb.test()
+async def test_enable_disasble(dut):
+	"""Check results for serial flash controller write enable/disable operations"""
+	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
+	await reset(dut,5)	
+
+	lst = []
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 0 
+	dut.i_data.value = 6		# cmd WR ENABLE
+
+	await RisingEdge(dut.i_clk)
+
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 0 
+	dut.i_data.value = 4		# cmd WR disable
+
+	await RisingEdge(dut.i_clk)
+
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	for i in range(2):
+	
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 1		# cmd write status register
+
+		await RisingEdge(dut.i_clk)
+
+		data = random.randint(100,2**8-1)
+		bin_data = BinaryValue(value=data)
+		while(bin_data.binstr[-2] == '0'):
+			data = random.randint(100,2**8-1)
+			bin_data = BinaryValue(value=data)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 1
+		dut.i_data.value = data
+		 
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 7
+		dut.i_data.value = 255
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0
+		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		await ClockCycles(dut.i_clk,5)
+
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 5		# cmd read status register
+		await RisingEdge(dut.i_clk)
+
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 255		# NOP command
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_dv)
+		lst.append(dut.o_data.value)
+		await ClockCycles(dut.i_clk,5)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 6		# cmd WR ENABLE
+
+		await RisingEdge(dut.i_clk)
+
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	assert not (0 != lst[0]),"Different expected to actual read data"
+	assert not (data != lst[1]),"Different expected to actual read data"
+
+@cocotb.test()
 async def test_status_reg(dut):
 	"""Check results for serial flash controller writing and reading the status register"""
 	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
