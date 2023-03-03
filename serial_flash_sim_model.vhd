@@ -1,3 +1,7 @@
+--Simple simulation model for M25Pxx series of serial flash embedded memories.
+--The behavior of the flash on the sim. model is based on the datasheet of the
+--M25P80 model.
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -112,8 +116,11 @@ begin
 					elsif(w_sr_rx_pos_sclk = "00000011") then
 						w_state <= RD_ADDR_H;
 					elsif (w_sr_rx_pos_sclk = "00000110") then
+						w_status_reg(1) <= '1';
 						w_state <= RD_CMD;
 					elsif (w_sr_rx_pos_sclk = "00000100") then
+						w_status_reg(1) <= '0';
+						w_sr_rx_pos_sclk <= w_status_reg(6 downto 0) & i_dq;
 						w_state <= RD_CMD;
 					elsif (w_sr_rx_pos_sclk = "00000101") then
 						w_state <= TX_DATA;
@@ -125,6 +132,9 @@ begin
 						w_status_reg <= w_status_reg(6 downto 0) & i_dq;
 					elsif (w_sr_rx_pos_sclk = "11000111" and w_status_reg(1) = '1') then
 						w_state <= RD_CMD;
+						for i in 0 to 255 loop 
+							mem(i) <= (others => '1');
+						end loop;
 					elsif (w_sr_rx_pos_sclk = "11011000" and w_status_reg(1) = '1') then
 						w_state <= RD_ADDR_H;
 					end if;
@@ -229,6 +239,7 @@ begin
 					mem(to_integer(unsigned(w_pointer))) <= w_sr_rx_pos_sclk;
 					w_state <= RD_DATA;
 					w_sr_rx_pos_sclk <= (others => '0');
+
 
 				when TX_DATA =>
 					if(i_s_n = '0') then

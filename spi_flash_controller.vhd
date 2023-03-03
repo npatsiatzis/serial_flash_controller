@@ -1,3 +1,9 @@
+--controller for a serial embedded flash (based on the M25Pxx series).
+--communication of commands and data with the flash is made over SPI (mode 3)
+--the M25Pxx series support modes 1 and 3 of SPI.
+--the majority of flash commands are supported namely :
+--write enable/disable, write/read status register, bulk/sector erase, read data, page program
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

@@ -1,3 +1,9 @@
+--generate the serial clock and slave-select (chip-select) signals of spi protocol
+--used for communicating data and commands to the flash
+--inputs to slect different values for leading,tailing, idling cycles 
+--of the serial clock w.r.t. the assertion and de-assertion of the chip-select
+--supports continuous spi flavor which is required for this application
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

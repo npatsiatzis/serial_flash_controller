@@ -1,7 +1,7 @@
 ![example workflow](https://github.com/npatsiatzis/serial_flash_controller/actions/workflows/regression.yml/badge.svg)
 ![example workflow](https://github.com/npatsiatzis/serial_flash_controller/actions/workflows/coverage.yml/badge.svg)
 
-### controller for serial flash embedded memory (MP25Pxx series)
+### controller for serial flash embedded memory (M25Pxx series)
 
 
 - supports essential flash commands (read data, page program, write enable/disable, sector/bulk erase, write/read status register)
