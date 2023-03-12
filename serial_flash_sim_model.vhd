@@ -1,6 +1,9 @@
 --Simple simulation model for M25Pxx series of serial flash embedded memories.
 --The behavior of the flash on the sim. model is based on the datasheet of the
---M25P80 model.
+--M25P80 model but the functionality described is valid throughout the M25Pxx series.
+--Note : this sim. model checks ONLY that the functionality corresponds to the 
+--functionality described in the datasheet. It does not contain any sort of 
+--tests/check regarding the timing behavior.
 
 library ieee;
 use ieee.std_logic_1164.all;

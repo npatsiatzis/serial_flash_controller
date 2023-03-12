@@ -37,6 +37,12 @@ async def reset(dut,cycles=1):
 @cocotb.test()
 async def test_enable_disasble(dut):
 	"""Check results for serial flash controller write enable/disable operations"""
+	# write enable -> write disable -> write random data to status reg -> read status reg
+	# write enable -> write random data to status reg -> read status reg
+	# check that first read data is 0 (default value of status reg) and 
+	# second read data is the random data you have writen to the status reg the second repetition
+
+	# commands exercized : write enable, write disable, write status register, read status register
 	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
 	await reset(dut,5)	
 
@@ -123,6 +129,10 @@ async def test_enable_disasble(dut):
 @cocotb.test()
 async def test_status_reg(dut):
 	"""Check results for serial flash controller writing and reading the status register"""
+	# write random data to status reg -> read status reg (5 repetitions)
+	# at the end end of each repetion, check that you read back the correct data
+
+	# commands exercized : write enable, write status register, read status register
 	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
 	await reset(dut,5)	
 
@@ -193,6 +203,13 @@ async def test_status_reg(dut):
 @cocotb.test()
 async def test_erase(dut):
 	"""Check results for serial flash controller of bulk erase command after writing and reading the flash"""
+	# write enable -> write random data to random address -> read data from that random address
+	# check that we have read correct data (5 repetitions)
+	# sector erase (bulk erase in comments)
+	# read data from the sector, check that that the read byte's value is 255 (all 1s)
+
+	# commands exercized : write enable, page program, read, sector erase (bulk erase in comments)
+
 	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
 	await reset(dut,5)	
 
@@ -366,6 +383,11 @@ async def test_erase(dut):
 @cocotb.test()
 async def test_single_r_w(dut):
 	"""Check results for serial flash controller writing and reading 1 item at a time"""
+	# write enable -> write random data to random address -> read data from that random address
+	# check that we have read correct data (50 repetitions) 
+	# write and reads here are single, they do not occur in burst like fashion
+
+	# commands exercized : write enable, page program, read
 	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
 	await reset(dut,5)	
 
@@ -467,6 +489,12 @@ async def test_single_r_w(dut):
 @cocotb.test()
 async def test_page_r_w(dut):
 	"""Check results and coverage for serial flash controller writing and reading whole pages"""
+	# write enable -> write random data to a page (progr. whole page) ->
+	# read data from that page (read whole page)
+	# check that we have read correct data  
+	# write and reads here occur a page at a time
+
+	# commands exercized : write enable, page program, read
 
 	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
 	await reset(dut,5)	
