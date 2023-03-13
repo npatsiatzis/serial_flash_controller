@@ -10,7 +10,7 @@ use ieee.numeric_std.all;
 
 entity spi_flash_controller is 
 	generic (
-			g_sys_clk : natural := 50_000_000);			--system clock freq. in Hz
+			g_sys_clk : natural := 200_000_000);			--system clock freq. in Hz
 	port (
 			--system clock and reset
 			i_clk : in std_ulogic;
@@ -33,11 +33,17 @@ entity spi_flash_controller is
 end spi_flash_controller;
 
 architecture rtl of spi_flash_controller is
-	constant SPI_FREQ : natural := 5_000_000; 		--spi serial clock freq. in Hz
-	constant SPI_CLK_CYCLES : natural := g_sys_clk / SPI_FREQ; 
+	--AC speficications for Device Grade 6, min Vcc = 2.7V
+	constant SPI_FREQ_READ : natural := 25_000_000; 	--clock freq. for READ commands
+	--f_spi_max must be at least /4 of sys clk
+	constant SPI_FREQ_REST : natural := 50_000_000; 	--clock freq. rest commands. 
+
+	constant SPI_FREQ : natural := 5000000; 		--spi serial clock freq. in Hz
+	signal SPI_CLK_CYCLES : natural := g_sys_clk / SPI_FREQ_REST;
+	--constant SPI_CLK_CYCLES : natural := g_sys_clk / SPI_FREQ; 
 
 	type t_state is (IDLE, TX_CMD, TX_ADDR_H, TX_ADDR_M , TX_ADDR_L, TX_DUMMY, TX_DATA, RX_DATA,
-		WAIT1,WAIT2,WAIT3,WAIT4,WAIT5,WAIT6,WAIT7, CLEAR_CMD);
+		WAIT1,WAIT2,WAIT3,WAIT4,WAIT5,WAIT6,WAIT7,WAIT8, CLEAR_CMD);
 
 	signal w_state : t_state;
 
@@ -50,6 +56,8 @@ architecture rtl of spi_flash_controller is
 	constant RD_STATUS_REG : std_ulogic_vector(7 downto 0) := "00000101";
 	constant WR_STATUS_REG : std_ulogic_vector(7 downto 0) := "00000001";
 	constant RD_DATA : std_ulogic_vector(7 downto 0) := "00000011";
+	--fast read corrsponds to simple read, but it requires dummy cycles 
+	--following the address bytes and can operate at a higher frequency.
 	constant F_RD_DATA : std_ulogic_vector(7 downto 0) := "00001011";
 	constant PAGE_PROGRAM : std_ulogic_vector(7 downto 0) := "00000010";
 	constant SECTOR_ERASE : std_ulogic_vector(7 downto 0) := "11011000";
@@ -102,8 +110,8 @@ begin
 		if(i_arstn = '0') then
 			w_cnt_tx_neg <= (others => '0');
 		elsif (falling_edge(w_sclk)) then
+			w_cnt_tx_neg_r <= w_cnt_tx_neg;
 			if(w_ss_n = '0') then
-				w_cnt_tx_neg_r <= w_cnt_tx_neg;
 				if(w_cnt_tx_neg = 7) then
 					w_cnt_tx_neg <= (others => '0');
 				else
@@ -146,7 +154,7 @@ begin
 	end process; -- cnt_bits_rx_pos
 
 
-	w_cont <= '1' when (w_state = WAIT1 or w_state = WAIT2 or w_state = WAIT3 or w_state = WAIT4 or w_state = WAIT6 or w_state = WAIT7 or w_state = TX_DATA or w_state = TX_DUMMY or w_state = RX_DATA or w_state = TX_ADDR_H or w_state = TX_ADDR_M or w_state = TX_ADDR_L) else '0';
+	w_cont <= '1' when (w_state = WAIT1 or w_state = WAIT2 or w_state = WAIT3 or w_state = WAIT4 or w_state = WAIT6 or w_state = WAIT7 or (w_state = WAIT8 and w_new_rx_req = '1') or w_state = TX_DATA or w_state = TX_DUMMY or w_state = RX_DATA  or w_state = TX_ADDR_H or w_state = TX_ADDR_M or w_state = TX_ADDR_L) else '0';
 
 	o_c <= w_sclk;
 	o_s_n <= w_ss_n;
@@ -232,6 +240,7 @@ begin
 	o_byte_tx_done <= w_tx_done;
 	o_byte_rx_done <= w_rx_done;
 
+
 	flash_cmd_FSM : process(i_clk,i_arstn) is
 	begin
 		if(i_arstn = '0') then
@@ -243,6 +252,7 @@ begin
 			w_rx_underway <= '0';
 			w_tx_underway <= '0';
 			o_dv <= '0';
+			SPI_CLK_CYCLES <= g_sys_clk / SPI_FREQ_REST;
 		elsif (rising_edge(i_clk)) then
 			w_tx_done <= '0';
 			w_rx_done <= '0';
@@ -307,9 +317,10 @@ begin
 					end if;
 				when TX_DUMMY =>
 					w_data_sreg <= (others => '0');
-					if(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7) then
+					if(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7 and w_tx_underway = '1') then
 						--w_state <= WAIT8;
-						w_state <= WAIT5;
+						w_tx_underway <= '0';
+						w_state <= WAIT7;
 					end if;
 				when TX_DATA =>
 					if(w_cnt_tx_neg =1) then                 
@@ -328,20 +339,23 @@ begin
 					if(w_cnt_rx_pos =1) then	
 						w_rx_done <= '1';
 						w_rx_underway <= '1';
-					elsif(w_cnt_rx_pos = 0 and w_cnt_rx_pos_r = 7 and w_rx_underway = '1') then
-						w_rx_underway <= '0';
-						case cmd_reg is 
-							when RD_DATA | F_RD_DATA =>
-								w_state <= WAIT7;
-							--when RD_STATUS_REG =>
-							--	w_state <= 	WAIT5;					
-							when others => 
-								w_state <= WAIT5;
-						end case;
+					elsif(w_cnt_rx_pos = 7 and w_cnt_rx_pos_r = 6 and w_rx_underway = '1') then
+					--elsif(w_cnt_rx_pos = 0 and w_cnt_rx_pos_r = 7 and w_rx_underway = '1') then
+						--w_rx_underway <= '0';
+						w_state <= WAIT8;
+						--case cmd_reg is 
+						--	when RD_DATA | F_RD_DATA =>
+						--		--w_state <= WAIT7;
+						--		w_state <= WAIT8;
+						--	--when RD_STATUS_REG =>
+						--	--	w_state <= 	WAIT5;					
+						--	when others => 
+						--		w_state <= WAIT5;
+						--end case;
 					end if;
 				when WAIT1 =>
 					case cmd_reg is 
-						when  SECTOR_ERASE | PAGE_PROGRAM | RD_DATA =>
+						when  SECTOR_ERASE | PAGE_PROGRAM | RD_DATA | F_RD_DATA =>
 							w_state <= TX_ADDR_H;
 							w_data_sreg <= addr_h_reg;
 						when WR_STATUS_REG => 
@@ -363,8 +377,10 @@ begin
 					case cmd_reg is 
 						when F_RD_DATA =>
 							w_state <= TX_DUMMY;
+							w_data_sreg <= (others => '0');
 						when RD_DATA => 
 							w_state <= RX_DATA;
+							SPI_CLK_CYCLES <= g_sys_clk/SPI_FREQ_READ;
 						when others =>
 							w_state <= CLEAR_CMD;
 					end case;
@@ -385,6 +401,20 @@ begin
 						when others =>
 							w_state <= CLEAR_CMD;
 					end case;
+				when WAIT8 =>
+					if(w_cnt_rx_pos = 0 and w_cnt_rx_pos_r = 7 and w_rx_underway = '1') then
+						w_rx_underway <= '0';
+						--w_state <= WAIT7;
+						case cmd_reg is 
+							when RD_DATA | F_RD_DATA =>
+								--w_state <= WAIT7;
+								w_state <= WAIT7;
+							--when RD_STATUS_REG =>
+							--	w_state <= 	WAIT5;					
+							when others => 
+								w_state <= WAIT5;
+						end case;
+					end if;
 				--when WAIT8 =>
 				--	o_data <= w_sr_rx_pos_sclk;
 				--	o_dv <= '1';
@@ -403,6 +433,7 @@ begin
 							end if; 
 						when others =>
 							w_state <= CLEAR_CMD;
+							SPI_CLK_CYCLES <= g_sys_clk/SPI_FREQ_REST;
 					end case;
 				when CLEAR_CMD =>
 					w_state <= IDLE;
