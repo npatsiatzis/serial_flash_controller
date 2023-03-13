@@ -27,7 +27,7 @@ architecture rtl of serial_flash_sim_model is
 	signal w_data_to_program : std_ulogic_vector(7 downto 0);
 
 
-	type t_state is (IDLE, RD_CMD, MNG_CMD , RD_ADDR_H, MNG_ADDRH, RD_ADDR_M , MNG_ADDRM, RD_ADDR_L, MNG_ADDRL, RD_DATA, MNG_RD_DATA, TX_DATA, MNG_TX_DATA);
+	type t_state is (IDLE, RD_CMD, MNG_CMD , RD_ADDR_H, MNG_ADDRH, RD_ADDR_M , MNG_ADDRM, RD_ADDR_L, MNG_ADDRL, RD_DATA, RD_DUMMY, MNG_RD_DATA, TX_DATA, MNG_TX_DATA);
 
 	signal w_state : t_state;
 	signal w_status_reg : std_ulogic_vector(7 downto 0);
@@ -117,6 +117,8 @@ begin
 					if(w_sr_rx_pos_sclk = "00000010" and w_status_reg(1) = '1') then
 						w_state <= RD_ADDR_H;
 					elsif(w_sr_rx_pos_sclk = "00000011") then
+						w_state <= RD_ADDR_H;
+					elsif(w_sr_rx_pos_sclk = "00001011") then
 						w_state <= RD_ADDR_H;
 					elsif (w_sr_rx_pos_sclk = "00000110") then
 						w_status_reg(1) <= '1';
@@ -211,12 +213,28 @@ begin
 						w_pointer <= w_sr_rx_pos_sclk;
 						o_dq <= mem(to_integer(unsigned(w_sr_rx_pos_sclk)))(7);
 						w_cnt_tx_neg <= to_unsigned(1,w_cnt_tx_neg'length);
+					elsif (w_cmd_reg = "00001011") then
+						w_cnt_rx_pos <= (others => '0');
+						w_state <= RD_DUMMY;
+						w_pointer <= w_sr_rx_pos_sclk;
 					elsif (w_cmd_reg = "11011000") then
 						for i in 0 to 255 loop 
 							mem(i) <= (others => '1');
 						end loop;
 					end if;
-
+				when RD_DUMMY =>
+					if(i_s_n = '0') then
+						if(w_cnt_rx_pos = 7) then
+							w_cnt_rx_pos <= (others => '0');
+							w_state <= TX_DATA;
+							o_dq <= mem(to_integer(unsigned(w_pointer)))(7);
+							w_cnt_tx_neg <= to_unsigned(1,w_cnt_tx_neg'length);
+						else
+							w_cnt_rx_pos <= w_cnt_rx_pos +1;
+						end if;
+					else
+						
+					end if;
 				when RD_DATA =>
 					if(i_s_n = '0') then
 						if (w_cmd_reg = "00000001") then

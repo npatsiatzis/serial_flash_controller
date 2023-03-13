@@ -3,6 +3,8 @@ use ieee.std_logic_1164.all;
 
 entity flash_top is
 	generic (
+			g_freq_read : natural := 25_000_000;
+			g_freq_rest : natural := 50_000_000;
 			g_sys_clk : natural := 200_000_000);			--system clock freq. in Hz
 	port (
 	 		i_clk : in std_ulogic;

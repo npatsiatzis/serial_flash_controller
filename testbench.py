@@ -380,6 +380,112 @@ async def test_erase(dut):
 
 	await ClockCycles(dut.i_clk,5)
 
+
+@cocotb.test()
+async def test_fast_read_single_r_w(dut):
+	"""Check results for serial flash controller writing and reading (fast read) 1 item at a time"""
+	# write enable -> write random data to random address -> fast read data from that random address
+	# check that we have read correct data (50 repetitions) 
+	# write and reads (fast) here are single, they do not occur in burst like fashion
+
+	# commands exercized : write enable, page program, read
+	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
+	await reset(dut,5)	
+
+	lst = []
+
+
+	dut.i_we.value = 1
+	dut.i_addr.value = 0 
+	dut.i_data.value = 6		# cmd WR ENABLE
+
+	await RisingEdge(dut.i_clk)
+
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	for i in range(50):
+	
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 2		# cmd page program
+
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+		addr = random.randint(165,2**8-1)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 2 
+		dut.i_data.value = 0		# addr high
+
+		await RisingEdge(dut.i_clk)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 3 
+		dut.i_data.value = 0		# addr m
+
+		await RisingEdge(dut.i_clk)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 4 
+		dut.i_data.value = addr		# addr low
+
+		await RisingEdge(dut.i_clk)
+
+		data = random.randint(165,2**8-1)
+		lst.append(data)
+		dut.i_we.value = 1
+		dut.i_addr.value = 1
+		dut.i_data.value = data 
+		await RisingEdge(dut.i_clk)
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 7
+		dut.i_data.value = 255
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0
+		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		await ClockCycles(dut.i_clk,5)
+
+
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 11		# cmd RD data
+		await RisingEdge(dut.i_clk)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 2 
+		dut.i_data.value = 0		# addr high
+
+		await RisingEdge(dut.i_clk)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 3 
+		dut.i_data.value = 0		# addr m
+
+		await RisingEdge(dut.i_clk)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 4 
+		dut.i_data.value = addr		# addr low
+
+		await RisingEdge(dut.i_clk)
+
+		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 255		# NOP command
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_dv)
+		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
+
+
 @cocotb.test()
 async def test_single_r_w(dut):
 	"""Check results for serial flash controller writing and reading 1 item at a time"""

@@ -316,11 +316,12 @@ begin
 						end case;
 					end if;
 				when TX_DUMMY =>
-					w_data_sreg <= (others => '0');
-					if(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7 and w_tx_underway = '1') then
+					if(w_cnt_tx_neg =1) then                 
+						w_tx_underway <= '1';
+					elsif(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7 and w_tx_underway = '1') then
 						--w_state <= WAIT8;
 						w_tx_underway <= '0';
-						w_state <= WAIT7;
+						w_state <= RX_DATA;
 					end if;
 				when TX_DATA =>
 					if(w_cnt_tx_neg =1) then                 
