@@ -10,6 +10,8 @@ use ieee.numeric_std.all;
 
 entity spi_flash_controller is 
 	generic (
+			g_freq_read : natural := 25_000_000;
+			g_freq_rest : natural := 50_000_000;
 			g_sys_clk : natural := 200_000_000);			--system clock freq. in Hz
 	port (
 			--system clock and reset
@@ -34,9 +36,9 @@ end spi_flash_controller;
 
 architecture rtl of spi_flash_controller is
 	--AC speficications for Device Grade 6, min Vcc = 2.7V
-	constant SPI_FREQ_READ : natural := 25_000_000; 	--clock freq. for READ commands
+	constant SPI_FREQ_READ : natural := g_freq_read; 	--clock freq. for READ commands
 	--f_spi_max must be at least /4 of sys clk
-	constant SPI_FREQ_REST : natural := 50_000_000; 	--clock freq. rest commands. 
+	constant SPI_FREQ_REST : natural := g_freq_rest; 	--clock freq. rest commands. 
 
 	constant SPI_FREQ : natural := 5000000; 		--spi serial clock freq. in Hz
 	signal SPI_CLK_CYCLES : natural := g_sys_clk / SPI_FREQ_REST;
