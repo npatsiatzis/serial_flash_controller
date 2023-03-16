@@ -416,6 +416,7 @@ begin
 							--	w_state <= 	WAIT5;					
 							when others => 
 								w_state <= WAIT5;
+								SPI_CLK_CYCLES <= g_sys_clk/SPI_FREQ_REST;
 						end case;
 					end if;
 				--when WAIT8 =>

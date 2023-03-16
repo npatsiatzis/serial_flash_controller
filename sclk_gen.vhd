@@ -95,7 +95,7 @@ begin
 			o_sclk <= '0';
 		elsif (rising_edge(i_clk)) then
 			--only start the serial clock during the tx phase
-			if(w_state = DATA_TX) then
+			if(w_state = DATA_TX or w_state = TALINING_DELAY) then
 				if(i_pol = '1') then
 					o_sclk <= not(w_sclk_pulse);
 				else

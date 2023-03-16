@@ -52,6 +52,7 @@ begin
 
 	m25p80_sim_model : entity work.m25p80_sim_model(rtl)
 	port map (
+			i_clk => i_clk,
 			C =>o_c,
 			D =>o_dq,
 			S =>o_s_n,
