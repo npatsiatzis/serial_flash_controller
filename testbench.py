@@ -34,168 +34,169 @@ async def reset(dut,cycles=1):
 	dut._log.info("the core was reset")
 
 
-# @cocotb.test()
-# async def test_enable_disasble(dut):
-# 	"""Check results for serial flash controller write enable/disable operations"""
-# 	# write enable -> write disable -> write random data to status reg -> read status reg
-# 	# write enable -> write random data to status reg -> read status reg
-# 	# check that first read data is 0 (default value of status reg) and 
-# 	# second read data is the random data you have writen to the status reg the second repetition
+@cocotb.test()
+async def test_enable_disasble(dut):
+	"""Check results for serial flash controller write enable/disable operations"""
+	# write enable -> write disable -> write random data to status reg -> read status reg
+	# write enable -> write random data to status reg -> read status reg
+	# check that first read data is 0 (default value of status reg) and 
+	# second read data is the random data you have writen to the status reg the second repetition
 
-# 	# commands exercized : write enable, write disable, write status register, read status register
-# 	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
-# 	await reset(dut,5)	
+	# commands exercized : write enable, write disable, write status register, read status register
+	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
+	await reset(dut,5)	
 
-# 	lst = []
+	lst = []
 
-# 	dut.i_we.value = 1
-# 	dut.i_addr.value = 0 
-# 	dut.i_data.value = 6		# cmd WR ENABLE
+	dut.i_we.value = 1
+	dut.i_addr.value = 0 
+	dut.i_data.value = 6		# cmd WR ENABLE
 
-# 	await RisingEdge(dut.i_clk)
+	await RisingEdge(dut.i_clk)
 
-# 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
-# 	dut.i_we.value = 1
-# 	dut.i_addr.value = 0 
-# 	dut.i_data.value = 4		# cmd WR disable
+	dut.i_we.value = 1
+	dut.i_addr.value = 0 
+	dut.i_data.value = 4		# cmd WR disable
 
-# 	await RisingEdge(dut.i_clk)
+	await RisingEdge(dut.i_clk)
 
-# 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
-# 	for i in range(2):
+	for i in range(2):
 	
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 1		# cmd write status register
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 1		# cmd write status register
 
-# 		await RisingEdge(dut.i_clk)
+		await RisingEdge(dut.i_clk)
 
-# 		data = random.randint(100,2**8-1)
-# 		bin_data = BinaryValue(value=data)
-# 		while(bin_data.binstr[-2] == '0'):
-# 			data = random.randint(100,2**8-1)
-# 			bin_data = BinaryValue(value=data)
+		data = random.randint(100,2**8-1)
+		bin_data = BinaryValue(value=data)
+		while(bin_data.binstr[-2] == '0'):
+			data = random.randint(100,2**8-1)
+			bin_data = BinaryValue(value=data)
 
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 1
-# 		dut.i_data.value = data
+		dut.i_we.value = 1
+		dut.i_addr.value = 1
+		dut.i_data.value = data
 		 
-# 		await RisingEdge(dut.i_clk)
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 7
-# 		dut.i_data.value = 255
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+		dut.i_we.value = 1
+		dut.i_addr.value = 7
+		dut.i_data.value = 255
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 0
-# 		dut.i_data.value = 255
-# 		await RisingEdge(dut.i_clk)
-# 		await ClockCycles(dut.i_clk,5)
-
-
-
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 5		# cmd read status register
-# 		await RisingEdge(dut.i_clk)
-
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 255		# NOP command
-# 		await RisingEdge(dut.i_clk)
-# 		await FallingEdge(dut.o_dv)
-# 		lst.append(dut.o_data.value)
-# 		await ClockCycles(dut.i_clk,5)
-
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 6		# cmd WR ENABLE
-
-# 		await RisingEdge(dut.i_clk)
-
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-# 	assert not (0 != lst[0]),"Different expected to actual read data"
-# 	assert not (data != lst[1]),"Different expected to actual read data"
-
-# @cocotb.test()
-# async def test_status_reg(dut):
-# 	"""Check results for serial flash controller writing and reading the status register"""
-# 	# write random data to status reg -> read status reg (5 repetitions)
-# 	# at the end end of each repetion, check that you read back the correct data
-
-# 	# commands exercized : write enable, write status register, read status register
-# 	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
-# 	await reset(dut,5)	
+		dut.i_we.value = 1
+		dut.i_addr.value = 0
+		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		await ClockCycles(dut.i_clk,5)
 
 
 
-# 	dut.i_we.value = 1
-# 	dut.i_addr.value = 0 
-# 	dut.i_data.value = 6		# cmd WR ENABLE
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 5		# cmd read status register
+		await RisingEdge(dut.i_clk)
 
-# 	await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
-# 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 255		# NOP command
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_dv)
+		lst.append(dut.o_data.value)
+		await ClockCycles(dut.i_clk,5)
 
-# 	for i in range(5):
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 6		# cmd WR ENABLE
+
+		await RisingEdge(dut.i_clk)
+
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	assert not (0 != lst[0]),"Different expected to actual read data"
+	assert not (data != lst[1]),"Different expected to actual read data"
+
+@cocotb.test()
+async def test_status_reg(dut):
+	"""Check results for serial flash controller writing and reading the status register"""
+	# write random data to status reg -> read status reg (5 repetitions)
+	# at the end end of each repetion, check that you read back the correct data
+
+	# commands exercized : write enable, write status register, read status register
+	cocotb.start_soon(Clock(dut.i_clk, period_ns, units="ns").start())
+	await reset(dut,5)	
+
+
+
+
+	for i in range(5):
 	
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 1		# cmd write status register
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 6		# cmd WR ENABLE
 
-# 		await RisingEdge(dut.i_clk)
+		await RisingEdge(dut.i_clk)
 
-# 		data = random.randint(100,2**8-1)
-# 		bin_data = BinaryValue(value=data)
-# 		while(bin_data.binstr[-2] == '0'):
-# 			data = random.randint(100,2**8-1)
-# 			bin_data = BinaryValue(value=data)
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+	
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 1		# cmd write status register
 
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 1
-# 		dut.i_data.value = data
+		await RisingEdge(dut.i_clk)
+
+		data = random.randint(100,2**8-1)
+		bin_data = BinaryValue(value=data)
+		while(bin_data.binstr[-1] == '1'):			#do not write a value that indicates WIP=1
+			data = random.randint(100,2**8-1)
+			bin_data = BinaryValue(value=data)
+
+		dut.i_we.value = 1
+		dut.i_addr.value = 1
+		dut.i_data.value = data
 		 
-# 		await RisingEdge(dut.i_clk)
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 7
-# 		dut.i_data.value = 255
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+		dut.i_we.value = 1
+		dut.i_addr.value = 7
+		dut.i_data.value = 255
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 0
-# 		dut.i_data.value = 255
-# 		await RisingEdge(dut.i_clk)
-# 		await ClockCycles(dut.i_clk,5)
+		dut.i_we.value = 1
+		dut.i_addr.value = 0
+		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		await ClockCycles(dut.i_clk,5)
 
 
 
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 5		# cmd read status register
-# 		await RisingEdge(dut.i_clk)
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 5		# cmd read status register
+		await RisingEdge(dut.i_clk)
 
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 255		# NOP command
-# 		await RisingEdge(dut.i_clk)
-# 		await FallingEdge(dut.o_dv)
-# 		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
-# 		await ClockCycles(dut.i_clk,5)
+		dut.i_we.value = 1
+		dut.i_addr.value = 0 
+		dut.i_data.value = 255		# NOP command
+		await RisingEdge(dut.i_clk)
+		await FallingEdge(dut.o_dv)
+		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
+		await ClockCycles(dut.i_clk,5)
 
 
 

@@ -84,6 +84,7 @@ constant  page_addr_increase: unsigned(PAGE_OFFSET_BITS-1 downto 0)  := to_unsig
 constant WREN_INS : std_ulogic_vector(3 downto 0)  := "0001";
 constant WRDI_INS : std_ulogic_vector(3 downto 0)  := "0010";
 constant RDID_INS : std_ulogic_vector(3 downto 0)  := "0011";
+constant WRSR_INS : std_ulogic_vector(3 downto 0)  := "1100";
 constant RDSR_INS : std_ulogic_vector(3 downto 0)  := "0100";
 constant READ_INS : std_ulogic_vector(3 downto 0)  := "0101";
 constant HSRD_INS : std_ulogic_vector(3 downto 0)  := "0110";
@@ -92,7 +93,7 @@ constant PGPG_INS : std_ulogic_vector(3 downto 0)  := "1000";
 constant PGES_INS : std_ulogic_vector(3 downto 0)  := "1001";
 constant SCES_INS : std_ulogic_vector(3 downto 0)  := "1010";
 constant DPPD_INS : std_ulogic_vector(3 downto 0)  := "1011";
-constant RLDP_INS : std_ulogic_vector(3 downto 0)  := "1100";
+--constant RLDP_INS : std_ulogic_vector(3 downto 0)  := "1100";
 constant WRLR_INS : std_ulogic_vector(3 downto 0)  := "1101";
 constant RDLR_INS : std_ulogic_vector(3 downto 0)  := "1110";
 constant BKES_INS : std_ulogic_vector(3 downto 0)  := "1111";
@@ -103,6 +104,7 @@ constant BKES_INS : std_ulogic_vector(3 downto 0)  := "1111";
 constant WREN_OP : std_ulogic_vector(3 downto 0)   := "0001";
 constant WRDI_OP : std_ulogic_vector(3 downto 0)   := "0010";
 constant RDID_OP : std_ulogic_vector(3 downto 0)   := "0011";
+constant WRSR_OP : std_ulogic_vector(3 downto 0)   := "1100";
 constant RDSR_OP : std_ulogic_vector(3 downto 0)   := "0100";
 constant READ_OP : std_ulogic_vector(3 downto 0)   := "0101";
 constant HSRD_OP : std_ulogic_vector(3 downto 0)   := "0110";
@@ -111,7 +113,7 @@ constant PGPG_OP : std_ulogic_vector(3 downto 0)   := "1000";
 constant PGES_OP : std_ulogic_vector(3 downto 0)   := "1001";
 constant SCES_OP : std_ulogic_vector(3 downto 0)   := "1010";
 constant DPPD_OP : std_ulogic_vector(3 downto 0)   := "1011";
-constant RLDP_OP : std_ulogic_vector(3 downto 0)   := "1100";
+--constant RLDP_OP : std_ulogic_vector(3 downto 0)   := "1100";
 constant WRLR_OP : std_ulogic_vector(3 downto 0)   := "1101";
 constant RDLR_OP : std_ulogic_vector(3 downto 0)   := "1110";
 constant BKES_OP : std_ulogic_vector(3 downto 0)   := "1111";
@@ -149,12 +151,11 @@ signal byte_ok,bit_counter_en,bit_counter_ld,bit7 : std_logic := '0';
 --signal byte_ok,bit_counter_en,bit_counter_ld,bit7 : std_ulogic;
 
 signal page_write,page_program,read_lock_register,write_lock_register : std_ulogic := '0';
-signal page_erase,sector_erase,read_data_bytes,read_data_bytes_fast : std_ulogic := '0';
-
+signal page_erase,sector_erase,read_data_bytes,read_data_bytes_fast, read_status_reg, write_status_reg : std_ulogic := '0';
 signal instruction_byte,address_h_byte,address_m_byte,address_l_byte,data_byte,dummy_byte : std_logic := '0';
 --signal instruction_byte,address_h_byte,address_m_byte,address_l_byte,data_byte,dummy_byte : std_ulogic;
 
-signal wren_id,wrdi_id,pges_id,sces_id,bkes_id,dppd_id,rldp_id,wrda_id : std_logic := '0';
+signal wren_id,wrdi_id,wrsr_id,pges_id,sces_id,bkes_id,dppd_id,rldp_id,wrda_id : std_logic := '0';
 --signal wren_id,wrdi_id,pges_id,sces_id,bkes_id,dppd_id,rldp_id,wrda_id : std_ulogic;
 
 signal wr_protect,bk_protect,sc_protect,dout,hw_rst,ins_rej,rst_in_cycle : std_logic := '0';
@@ -229,6 +230,9 @@ begin
 		        if(operation = PGPG_OP) then
 		         wrda_id <= force '0';
 		     	end if;
+		     	if(operation = WRSR_OP) then
+		     		wrsr_id <= force '0';
+		     	end if;
 		        if(operation = PGES_OP) then
 		         pges_id <= '0';
 		     	end if;
@@ -241,9 +245,9 @@ begin
 		        if(operation = DPPD_OP) then
 		         dppd_id <= '0';
 		     	end if;
-		        if(operation = RLDP_OP) then
-		         rldp_id <= '0';
-		     	end if;
+		      --  if(operation = RLDP_OP) then
+		      --   rldp_id <= '0';
+		     	--end if;
 		    elsif(bit_counter_en = '1' and bit_counter_ld = '0') then
 		    	shift_in_reg <= force shift_in_reg(6 downto 0) & D;
 		    	bit_counter <= force bit_counter -1;
@@ -298,14 +302,17 @@ begin
 						ins_rej <= '0';
 					else
 						instruction <= force  RDSR_INS;
-						--sr_bit <= force 8;
+						sr_bit <= force 7;
 
 						operation <= force RDSR_OP;
-						if(sr_bit = 0) then
-							sr_bit <= force 8;
-						end if;
-						dout <= force status_reg(sr_bit-1);
-						sr_bit <= force sr_bit -1;
+						write_status_reg <= force '1';
+						dout <= force status_reg(7);
+						--sr_bit <= force sr_bit -1;
+						--if(sr_bit = 0) then
+						--	sr_bit <= force 8;
+						--end if;
+						--dout <= force status_reg(sr_bit-1);
+						--sr_bit <= force sr_bit -1;
 					end if;
 				when "00000011" =>
 					if(ins_rej = '1') then
@@ -351,6 +358,25 @@ begin
 								address_h_byte <= force '1';
 								bit_counter_en <= force  '1';
 								bit_counter_ld <= force  '1';
+							end if;
+						end if;
+					end if;
+
+				when "00000001" =>
+					if(ins_rej = '1') then
+						ins_rej <= '0';
+					else
+						instruction <= force WRSR_INS;
+
+						if(status_reg(0) = '1') then
+							null;
+						else
+							if(status_reg(1) = '1') then
+								read_status_reg <= force '1';
+								operation <= WRSR_OP;
+								wrsr_id <= force '1';
+								bit_counter_en <= force '1';
+								bit_counter_ld <= force '1';
 							end if;
 						end if;
 					end if;
@@ -472,6 +498,20 @@ begin
 		--	when others =>
 		--		null;
 		--end case;
+		if(mode = ap_mode and write_status_reg = '1' and sr_bit /= 0) then
+			dout <= force status_reg(sr_bit-1);
+			sr_bit <= force sr_bit -1;
+		elsif (mode = ap_mode and write_status_reg = '1' and sr_bit = 0) then
+			write_status_reg <= force '0';
+		end if;
+
+		if(mode = ap_mode and read_status_reg = '1' and byte_ok = '1') then
+				read_status_reg <= force '0';
+				byte_ok <= force '0';
+				status_reg <= force shift_in_reg;
+				bit_counter_en <= force '0';
+				bit_counter_ld <= force '0';
+		end if;
 
 		if(mode = ap_mode and address_h_byte = '1' and byte_ok = '1') then
 			address_h_byte <= force '0';
@@ -716,6 +756,13 @@ begin
 						v_addr(PAGE_OFFSET_BITS-1 downto 0) := v_addr(PAGE_OFFSET_BITS-1 downto 0) +1;
 					end loop;
 					wrda_id <= force '0';
+				end if;
+			end if;
+
+			if(operation = WRSR_OP) then
+				if(wrsr_id = '1') then
+					operation <= (others => '0');
+					wrsr_id <= force '0';
 				end if;
 			end if;
 
