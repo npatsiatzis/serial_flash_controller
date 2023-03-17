@@ -138,8 +138,8 @@ signal S_prev : std_ulogic;
 --=========================================================
 --Define Variable, Reflecting the Device Operation Status
 --=========================================================
-signal i,bytes,bytes_int : natural := 0;
-signal sr_bit : natural := 8;
+signal i,bytes,bytes_int : integer := 0;
+signal sr_bit : integer := 8;
 -----------------------------------------------------------
 signal power_on,power_on_rst : std_ulogic := '0';
 signal power_off : std_ulogic := '1';
@@ -260,6 +260,7 @@ begin
 end process; -- serial_input
 
 instruction_treatment : process(C) is
+	variable v_mem_addr : std_ulogic_vector(23 downto 0) := (others => '0');
 begin
 	if(falling_edge(C)) then
 		if(mode = ap_mode and instruction_byte = '1' and byte_ok = '1') then
@@ -496,6 +497,7 @@ begin
 			address_l_code <= force shift_in_reg;
 			--memory_address <= address_h_code & address_m_code & address_l_code;
 			memory_address <= force (address_h_code & address_m_code & shift_in_reg);
+			v_mem_addr := (address_h_code & address_m_code & shift_in_reg);
 
 			if(sector_erase = '1') then
 				operation <= force SCES_OP;
@@ -506,8 +508,12 @@ begin
 			if(read_data_bytes = '1') then
 				operation <= force READ_OP;
 				read_data_bytes <= force '0';
-				dout <= force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))))(7);
+
+				dout <= force memory(to_integer(unsigned(v_mem_addr(MEM_ADDR_BITS-1 downto 0))))(7);
 				i <= force 7;
+
+				--dout <= force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))))(7);
+				--i <= force 7;
 			end if;
 
 			if(read_data_bytes_fast = '1') then
@@ -558,39 +564,48 @@ begin
 				if(memory_address(PAGE_OFFSET_BITS-1 downto 0) = std_ulogic_vector(to_unsigned((2**PAGE_OFFSET_BITS -1),PAGE_OFFSET_BITS))) then
 					memory_address(PAGE_OFFSET_BITS-1 downto 0) <= (others => '0');
 				else
-					memory_address(PAGE_OFFSET_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0)) + 1);
+					memory_address <= force std_ulogic_vector(unsigned(memory_address) + 1);
 				end if;
 			end if;
 
 		end if;
 		if(operation = READ_OP) then
 			if(i = 0) then
-				i <= force 8;
-				if(memory_address(MEM_ADDR_BITS-1 downto 0) = address_highest) then
-					memory_address(MEM_ADDR_BITS-1 downto 0) <= address_zero;
+				i <= force 7;
+				--if(memory_address(MEM_ADDR_BITS-1 downto 0) = address_highest) then
+				if(v_mem_addr(MEM_ADDR_BITS-1 downto 0) = address_highest) then
+					--memory_address(MEM_ADDR_BITS-1 downto 0) <= address_zero;
+					v_mem_addr(MEM_ADDR_BITS-1 downto 0) := address_zero;
 				else
-					memory_address(MEM_ADDR_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0)) + address_increase);
+					--memory_address <= force std_ulogic_vector(unsigned(memory_address) + address_increase);
+					v_mem_addr := std_ulogic_vector(unsigned(v_mem_addr) + address_increase);
 				end if;
-			end if;
+				dout <= force memory(to_integer(unsigned(v_mem_addr(MEM_ADDR_BITS-1 downto 0))))(7);
+			else
 			--data_out_buf <=force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))));
 			--dout <= force data_out_buf(i-1);
-			dout <= force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))))(i-1);
-			i <= force i-1;
+				--dout <= force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))))(i-1);
+				dout <= force memory(to_integer(unsigned(v_mem_addr(MEM_ADDR_BITS-1 downto 0))))(i-1);
+				i <= force i-1;
+			end if;
 		end if;
+
 
 		if(operation = HSRD_OP) then
 			if(i = 0) then
-				i <= force 8;
+				i <= force 7;
 				if(memory_address(MEM_ADDR_BITS-1 downto 0) = address_highest) then
 					memory_address(MEM_ADDR_BITS-1 downto 0) <= address_zero;
 				else
-					memory_address(MEM_ADDR_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0)) + address_increase);
+					memory_address <= force std_ulogic_vector(unsigned(v_mem_addr) + address_increase);
 				end if;
-			end if;
+				dout <= force memory(to_integer(unsigned(v_mem_addr(MEM_ADDR_BITS-1 downto 0))))(7);
+			else
 			--data_out_buf <=force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))));
 			--dout <= force data_out_buf(i-1);
-			dout <= force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))))(i-1);
-			i <= force i-1;
+				dout <= force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))))(i-1);
+				i <= force i-1;
+			end if;
 		end if;
 
 	end if;
@@ -614,6 +629,7 @@ end process; -- cs_driven_high
 
 --cs_goes_high_manage : process(S) is
 cs_goes_high_manage : process(i_clk) is
+	variable v_addr : unsigned(23 downto 0) := (others => '0');
 begin
 	if(rising_edge(i_clk)) then
 		S_prev <= S;
@@ -673,10 +689,16 @@ begin
 					status_reg(0) <= force '0';
 					operation <= (others => '0');
 					--memory_address(7 downto 0) <= x"00";
-					memory_address(PAGE_OFFSET_BITS-1 downto 0) <= (others => '0');
+					--memory_address(PAGE_OFFSET_BITS-1 downto 0) <= (others => '0');
+					--memory_address <= force (others => '0');
+					v_addr := unsigned(memory_address);
+					v_addr(PAGE_OFFSET_BITS-1 downto 0) := (others => '0');
 					for j in 1 to PAGE_SIZE loop
-						memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0)))) <= force data_latch(to_integer(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0))));
-						memory_address(PAGE_OFFSET_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0)) + 1);
+						memory(to_integer(unsigned(v_addr(MEM_ADDR_BITS-1 downto 0)))) <= force data_latch(to_integer(unsigned(v_addr(PAGE_OFFSET_BITS-1 downto 0))));
+						--memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0)))) <= force data_latch(to_integer(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0))));
+						--memory_address(PAGE_OFFSET_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0)) + 1);
+						--memory_address <= force std_ulogic_vector(unsigned(memory_address) + 1);
+						v_addr(PAGE_OFFSET_BITS-1 downto 0) := v_addr(PAGE_OFFSET_BITS-1 downto 0) +1;
 					end loop;
 					wrda_id <= force '0';
 				end if;
