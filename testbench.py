@@ -18,7 +18,9 @@ def notify():
 
 # at_least = value is superfluous, just shows how you can determine the amount of times that
 # a bin must be hit to considered covered
-@CoverPoint("top.i_data",xf = lambda x : x, bins = list(range(2**8)), at_least=1)
+
+# 2**4 is the number of bytes in a page in the sim. model. Change this number (range) accrodinlgy.
+@CoverPoint("top.i_data",xf = lambda x : x, bins = list(range(2**4)), at_least=1)
 def number_cover(data):
 	covered_valued.append(int(data))
 
@@ -664,12 +666,12 @@ async def test_page_r_w(dut):
 
 		dut.i_we.value = 1
 		dut.i_addr.value = 1
-		data = random.randint(0,2**8-1)
+		data = random.randint(0,2**4-1)
 		while(data in covered_valued):
-			data = random.randint(0,2**8-1) 
+			data = random.randint(0,2**4-1) 
 		dut.i_data.value = data		# data to tx
-		# number_cover(data)
-		# coverage_db["top.i_data"].add_threshold_callback(notify, 100)
+		number_cover(data)
+		coverage_db["top.i_data"].add_threshold_callback(notify, 100)
 		lst.append(data)
 		await RisingEdge(dut.i_clk)
 

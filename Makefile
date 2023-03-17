@@ -16,13 +16,12 @@ VHDL_SOURCES += $(PWD)/top.vhd
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
 # MODULE is the basename of the Python test file
+test_micron_derived_sim_model:
+		rm -rf sim_build
+		$(MAKE) sim MODULE=testbench TOPLEVEL=top
 
 test_custom_sim_model:
 		rm -rf sim_build
 		$(MAKE) sim MODULE=testbench TOPLEVEL=flash_top
-
-test_micron_derived_sim_model:
-		rm -rf sim_build
-		$(MAKE) sim MODULE=testbench TOPLEVEL=top
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
