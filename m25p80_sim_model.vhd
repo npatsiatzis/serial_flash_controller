@@ -533,12 +533,18 @@ begin
 				page_program <= force '0';
 				page_address <= force memory_address(MEM_ADDR_BITS-1 downto MEM_ADDR_BITS- PAGE_ADDR_BITS);
 				--page_address <= memory_address(MEM_ADDR_BITS-1 downto MEM_ADDR_BITS- PAGE_ADDR_BITS);
+				
+				page_address <= v_mem_addr(MEM_ADDR_BITS-1 downto MEM_ADDR_BITS- PAGE_ADDR_BITS);
+
 				for j in 1 to PAGE_SIZE loop 
 					data_latch(to_integer(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0)))) <= force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))));
-					if(memory_address(PAGE_OFFSET_BITS-1 downto 0) = page_addr_highest) then
-						memory_address(PAGE_OFFSET_BITS-1 downto 0) <= page_addr_zero;
+					--if(memory_address(PAGE_OFFSET_BITS-1 downto 0) = page_addr_highest) then
+					if(v_mem_addr(PAGE_OFFSET_BITS-1 downto 0) = page_addr_highest) then
+						--memory_address(PAGE_OFFSET_BITS-1 downto 0) <= page_addr_zero;
+						v_mem_addr(PAGE_OFFSET_BITS-1 downto 0) := page_addr_zero;
 					else
-						memory_address(PAGE_OFFSET_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0)) + page_addr_increase);
+						--memory_address(PAGE_OFFSET_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0)) + page_addr_increase);
+						v_mem_addr(PAGE_OFFSET_BITS-1 downto 0) := std_ulogic_vector(unsigned(v_mem_addr(PAGE_OFFSET_BITS-1 downto 0)) + page_addr_increase);
 					end if;
 				end loop;
 			end if;
@@ -560,11 +566,16 @@ begin
 				bit_counter_ld <= force  '1';
 				wrda_id <= force '1';
 				--data_latch(to_integer(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0)))) <= data_latch(to_integer(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0)))) and shift_in_reg;
-				data_latch(to_integer(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0)))) <= force shift_in_reg;
-				if(memory_address(PAGE_OFFSET_BITS-1 downto 0) = std_ulogic_vector(to_unsigned((2**PAGE_OFFSET_BITS -1),PAGE_OFFSET_BITS))) then
-					memory_address(PAGE_OFFSET_BITS-1 downto 0) <= (others => '0');
+				--data_latch(to_integer(unsigned(memory_address(PAGE_OFFSET_BITS-1 downto 0)))) <= force shift_in_reg;
+				data_latch(to_integer(unsigned(v_mem_addr(PAGE_OFFSET_BITS-1 downto 0)))) <= force shift_in_reg;
+				
+				--if(memory_address(PAGE_OFFSET_BITS-1 downto 0) = std_ulogic_vector(to_unsigned((2**PAGE_OFFSET_BITS -1),PAGE_OFFSET_BITS))) then
+				if(v_mem_addr(PAGE_OFFSET_BITS-1 downto 0) = std_ulogic_vector(to_unsigned((2**PAGE_OFFSET_BITS -1),PAGE_OFFSET_BITS))) then
+					--memory_address(PAGE_OFFSET_BITS-1 downto 0) <= (others => '0');
+					v_mem_addr(PAGE_OFFSET_BITS-1 downto 0) := (others => '0');
 				else
-					memory_address <= force std_ulogic_vector(unsigned(memory_address) + 1);
+					--memory_address <= force std_ulogic_vector(unsigned(memory_address) + 1);
+					v_mem_addr := std_ulogic_vector(unsigned(v_mem_addr) + 1);
 				end if;
 			end if;
 
@@ -594,16 +605,20 @@ begin
 		if(operation = HSRD_OP) then
 			if(i = 0) then
 				i <= force 7;
-				if(memory_address(MEM_ADDR_BITS-1 downto 0) = address_highest) then
-					memory_address(MEM_ADDR_BITS-1 downto 0) <= address_zero;
+				if(v_mem_addr(MEM_ADDR_BITS-1 downto 0) = address_highest) then
+				--if(memory_address(MEM_ADDR_BITS-1 downto 0) = address_highest) then
+					--memory_address(MEM_ADDR_BITS-1 downto 0) <= address_zero;
+					v_mem_addr(MEM_ADDR_BITS-1 downto 0) := address_zero;
 				else
-					memory_address <= force std_ulogic_vector(unsigned(v_mem_addr) + address_increase);
+					--memory_address <= force std_ulogic_vector(unsigned(v_mem_addr) + address_increase);
+					v_mem_addr := std_ulogic_vector(unsigned(v_mem_addr) + address_increase);
 				end if;
 				dout <= force memory(to_integer(unsigned(v_mem_addr(MEM_ADDR_BITS-1 downto 0))))(7);
 			else
 			--data_out_buf <=force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))));
 			--dout <= force data_out_buf(i-1);
-				dout <= force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))))(i-1);
+				--dout <= force memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0))))(i-1);
+				dout <= force memory(to_integer(unsigned(v_mem_addr(MEM_ADDR_BITS-1 downto 0))))(i-1);
 				i <= force i-1;
 			end if;
 		end if;
@@ -706,14 +721,20 @@ begin
 
 			if(operation = SCES_OP) then
 				dout <= force 'Z';
-				sector_address <= memory_address(MEM_ADDR_BITS-1 downto MEM_ADDR_BITS- SECTOR_ADDR_BITS);
+				v_addr := unsigned(memory_address);
+				--sector_address <= memory_address(MEM_ADDR_BITS-1 downto MEM_ADDR_BITS- SECTOR_ADDR_BITS);
+				sector_address <= std_ulogic_vector((v_addr(MEM_ADDR_BITS-1 downto MEM_ADDR_BITS- SECTOR_ADDR_BITS)));
 				if(sces_id = '1') then
-					--status_reg(1) <= force 'X';
-					status_reg(0) <= force '1';
-					memory_address(3 downto 0) <= "0000";
+					status_reg(1) <= force '0';
+					status_reg(0) <= force '0';
+					operation <= (others => '0');
+					--memory_address(3 downto 0) <= "0000";
+					v_addr(SECTOR_OFFSET_BITS-1 downto 0) := (others => '0');
 					for j in 1 to SECTOR_SIZE loop 
-						memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0)))) <= force (others => '1');
-						memory_address(SECTOR_OFFSET_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(SECTOR_OFFSET_BITS-1 downto 0)) + 1);
+						--memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0)))) <= force (others => '1');
+						memory(to_integer(unsigned(v_addr(MEM_ADDR_BITS-1 downto 0)))) <= force (others => '1');
+						--memory_address(SECTOR_OFFSET_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(SECTOR_OFFSET_BITS-1 downto 0)) + 1);
+						v_addr(SECTOR_OFFSET_BITS-1 downto 0) := v_addr(SECTOR_OFFSET_BITS-1 downto 0) + 1;
 					end loop;
 					sces_id <= force '0';
 				end if;
@@ -721,12 +742,17 @@ begin
 
 			if(operation = BKES_OP) then
 				dout <= force 'Z';
+				v_addr := unsigned(memory_address);
 				if(bkes_id = '1') then
-					--status_reg(1) <= force 'X';
-					status_reg(0) <= force '1';
+					status_reg(1) <= force '0';
+					status_reg(0) <= force '0';
+					operation <= (others => '0');
+
 					for j in 1 to MEM_SIZE loop 
-						memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0)))) <= force (others => '1');
-						memory_address(MEM_ADDR_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0)) + address_increase);
+						--memory(to_integer(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0)))) <= force (others => '1');
+						memory(to_integer(unsigned(v_addr(MEM_ADDR_BITS-1 downto 0)))) <= force (others => '1');
+						--memory_address(MEM_ADDR_BITS-1 downto 0) <= std_ulogic_vector(unsigned(memory_address(MEM_ADDR_BITS-1 downto 0)) + address_increase);
+						v_addr(MEM_ADDR_BITS-1 downto 0) := v_addr(MEM_ADDR_BITS-1 downto 0) + address_increase;
 					end loop;
 					bkes_id <= force '0';
 				end if;
