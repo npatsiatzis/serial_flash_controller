@@ -132,6 +132,11 @@ constant dp_mode : std_ulogic_vector(1 downto 0) := "11";
 signal din_change,r_S,f_S,r_C,r_Cr,f_C,f_W,r_W,r_RESET,f_RESET,r_VCC : std_ulogic;
 signal S_prev : std_ulogic;
 -----------------------------------------------------------
+--time t_rCr,t_rCr1,Tcr,Tc,t_d,t_rC1,current_time;
+--time t_rS,t_fS,t_rC,t_fC,t_fW,t_rW,t_rVCC,t_rRESET,t_fRESET;
+--time tVSL,tCH,tCL,tSLCH,tCHSL,tDVCH,tCHDX;
+--time tCHSH,tSHCH,tSHSL,tRHSL,tRLRH,tSHRH,tTHSL,tSHTL;
+
 --=========================================================
 --Define Variable, Reflecting the Device Operation Status
 --=========================================================
@@ -143,29 +148,36 @@ signal power_off : std_ulogic := '1';
 
 
 signal byte_ok,bit_counter_en,bit_counter_ld,bit7 : std_logic := '0';
+--signal byte_ok,bit_counter_en,bit_counter_ld,bit7 : std_ulogic;
 
 signal page_write,page_program,read_lock_register,write_lock_register : std_ulogic := '0';
 signal page_erase,sector_erase,read_data_bytes,read_data_bytes_fast, read_status_reg, write_status_reg : std_ulogic := '0';
 signal instruction_byte,address_h_byte,address_m_byte,address_l_byte,data_byte,dummy_byte : std_logic := '0';
+--signal instruction_byte,address_h_byte,address_m_byte,address_l_byte,data_byte,dummy_byte : std_ulogic;
 
 signal wren_id,wrdi_id,wrsr_id,pges_id,sces_id,bkes_id,dppd_id,rldp_id,wrda_id : std_logic := '0';
+--signal wren_id,wrdi_id,pges_id,sces_id,bkes_id,dppd_id,rldp_id,wrda_id : std_ulogic;
 
 signal wr_protect,bk_protect,sc_protect,dout,hw_rst,ins_rej,rst_in_cycle : std_logic := '0';
+--signal wr_protect,bk_protect,sc_protect,dout,hw_rst,ins_rej,rst_in_cycle : std_ulogic;
 
 signal device_power_down,deep_pd_delay,release_pd_delay : std_ulogic := '0';
 signal not_deep_pd,not_release_pd : std_ulogic := '0';
 -----------------------------------------------------------
 signal lk_reg_no : std_ulogic_vector(5 downto 0);
 signal instruction,operation,sector,sub_sector : std_logic_vector(3 downto 0) :=(others => '0');
+--signal instruction,operation,sector,sub_sector : std_ulogic_vector(3 downto 0);
 
 signal shift_in_reg,instruction_code,address_h_code,address_m_code,address_l_code : std_ulogic_vector(7 downto 0) :=(others => '0');
 signal status_reg,data_out_buf,temp: std_ulogic_vector( 7 downto 0) :=(others => '0');
 signal bit_counter : unsigned(2 downto 0) := (others => '0');
 signal mode : std_logic_vector(1 downto 0) := sb_mode;
+--signal mode : std_ulogic_vector(1 downto 0) := np_mode;
 
 signal previous_op : std_ulogic_vector(1 downto 0) :=(others => '0');
 -----------------------------------------------------------
 signal device_id,memory_address : std_logic_vector(23 downto 0) :=(others => '0');
+--signal device_id,memory_address : std_ulogic_vector(23 downto 0);
 
 type t_array is array(MEM_SIZE-1 downto 0) of std_ulogic_vector(DATA_BITS-1 downto 0);
 signal memory : t_array;
@@ -178,6 +190,23 @@ begin
 -----------------------------------------------------------
 Q <= dout;
 bytes <= 0 when (S = '1' and operation = PGPG_OP and bytes_int <256) else bytes_int;
+
+
+----active_power_mode : process(all) is
+--active_power_mode : process(i_clk) is
+--begin
+--	if(rising_edge(i_clk)) then
+--		S_prev <= S;
+--		if(S = '0' and S_prev = '1') then
+--		--if(falling_edge(S))then	
+--	    	instruction_byte <= force '1';  --ready for instruction
+--	      	-----------------------------------------------------
+--	        mode <= force ap_mode;
+--	        bit_counter_en <= '1';
+--	        bit_counter_ld <= force  '1';    --enable the bit_counter
+--		end if;
+--	end if;
+--end process; -- active_power_mode
 
 serial_input : process(C) is
 begin
@@ -216,6 +245,9 @@ begin
 		        if(operation = DPPD_OP) then
 		         dppd_id <= '0';
 		     	end if;
+		      --  if(operation = RLDP_OP) then
+		      --   rldp_id <= '0';
+		     	--end if;
 		    elsif(bit_counter_en = '1' and bit_counter_ld = '0') then
 		    	shift_in_reg <= force shift_in_reg(6 downto 0) & D;
 		    	bit_counter <= force bit_counter -1;

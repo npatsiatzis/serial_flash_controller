@@ -76,7 +76,7 @@ async def test_enable_disasble(dut):
 
 		data = random.randint(100,2**8-1)
 		bin_data = BinaryValue(value=data)
-		while(bin_data.binstr[-2] == '0'):
+		while(bin_data.binstr[-1] == '1'):			#don't write a value in status reg. with WIP=1
 			data = random.randint(100,2**8-1)
 			bin_data = BinaryValue(value=data)
 
@@ -159,7 +159,7 @@ async def test_status_reg(dut):
 
 		data = random.randint(100,2**8-1)
 		bin_data = BinaryValue(value=data)
-		while(bin_data.binstr[-1] == '1'):			#do not write a value that indicates WIP=1
+		while(bin_data.binstr[-1] == '1'):			#don't write a value in status reg. with WIP=1
 			data = random.randint(100,2**8-1)
 			bin_data = BinaryValue(value=data)
 
