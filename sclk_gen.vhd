@@ -1,8 +1,10 @@
 --generate the serial clock and slave-select (chip-select) signals of spi protocol
 --used for communicating data and commands to the flash
---inputs to slect different values for leading,tailing, idling cycles 
+--inputs to select different values for leading,tailing, idling cycles (if required) 
 --of the serial clock w.r.t. the assertion and de-assertion of the chip-select
---supports continuous spi flavor which is required for this application
+--supports continuous spi flavor which is required for this application (i.e a transaction
+--does not necessarily only consist of 1 byte, there are transactions in which ones sends a 
+--large number of bytes ,e.g a page, before the transaction terminates via de-asserting chip-select)
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -12,17 +14,17 @@ entity sclk_gen is
 	generic (
 			g_data_width : natural :=8);
 	port (
-			i_clk : in std_ulogic;
-			i_arstn : in std_ulogic;
-			i_dv : in std_ulogic;		--input bus data valid
-			i_cont : in std_ulogic;
-			i_sclk_cycles : in std_ulogic_vector(7 downto 0);
-			i_leading_cycles : in std_ulogic_vector(7 downto 0);
+			i_clk : in std_ulogic;						--system clock
+			i_arstn : in std_ulogic;					--system reset
+			i_dv : in std_ulogic;						--input bus data valid
+			i_cont : in std_ulogic;						--continuous spi transaction indicator
+			i_sclk_cycles : in std_ulogic_vector(7 downto 0);	--system cycles that make spi clock
+			i_leading_cycles : in std_ulogic_vector(7 downto 0);	
 			i_tailing_cycles : in std_ulogic_vector(7 downto 0);
 			i_iddling_cycles : in std_ulogic_vector(7 downto 0);
-			i_pol : in std_ulogic;
-			o_ss_n : out std_ulogic;
-			o_sclk : out std_ulogic);
+			i_pol : in std_ulogic;						--spi clock polarity
+			o_ss_n : out std_ulogic;					--chip/slave select
+			o_sclk : out std_ulogic);					--spi serial clock
 end sclk_gen;
 
 architecture rtl of sclk_gen is
@@ -94,8 +96,27 @@ begin
 		if(i_arstn = '0') then
 			o_sclk <= '0';
 		elsif (rising_edge(i_clk)) then
-			--only start the serial clock during the tx phase
-			if(w_state = DATA_TX or w_state = TALINING_DELAY) then
+			--only start the serial clock during the tx phase (regular spi behavior)
+			--from the relevant datasheets of the M25Pxx series, we see that we have to
+			--run 1 extra cycle, so adjust accordinlgy
+
+			--e.g handling of non-continuous spi transaction based on the datasheet
+			--of M25Pxx serial flash series (spi mode 3)
+
+			-- S (chip-select)
+			--  ~~~~													 ~~~~~~~~
+			--      \													/
+			--		 ~~~~			..........              ~~~~~~~~~~~
+
+			-- SCK  (0)				..........				SCK(7)
+			--     ~~~~~									~~~~~
+			--			\										 \
+			--           ~~~~~    								  ~~~~~
+
+			-- In usual SPI mode 3, the last cycle before the chip-select goes high is SCK(6),
+			-- however as we've mentioned the datasheet dictates that we also need SCK(7)
+
+			if(w_state = DATA_TX or (w_state = TALINING_DELAY and w_cnt_delay = 0)) then
 				if(i_pol = '1') then
 					o_sclk <= not(w_sclk_pulse);
 				else
@@ -136,6 +157,23 @@ begin
 							w_cnt_falling_edges <= '1';
 						end if;
 				--this state is the transfer state for both tx and rx
+
+
+				--e.g handling of continuous spi transaction based on the datasheet
+				--of M25Pxx serial flash series (spi mode 3)
+
+				-- S (chip-select)
+				--  ~~~~													 ~~~~~~~~
+				--      \													/
+				--		 ~~~~			..........              ~~~~~~~~~~~
+
+				-- SCK  (0)				..........				SCK(7+X)
+				--     ~~~~~									~~~~~
+				--			\										 \
+				--           ~~~~~    								  ~~~~~
+
+				--X = # address/data bytes that need transfer apart from flash command code
+
 				when DATA_TX =>	
 					if(w_continue = '1' and w_sclk_falling_edges = 0) then
 						w_cnt_falling_edges <= '1';

@@ -36,6 +36,33 @@ async def reset(dut,cycles=1):
 	dut._log.info("the core was reset")
 
 
+	# 					USER REGISTER MAP
+
+	# 			Address 		| 		Functionality
+	#			   0 			|	write flash command code
+	#			   1 			|	write data to tx / keep programming data bytes
+	#			   2 			|	write A23-A16
+	#			   3 			|	write A15-A8
+	#			   4 			|	write A7-A0
+	#			   5 			|	keep reading data bytes
+
+	
+	#supported flash commands 
+	#command set codes for serial embedded memory , eg any from ST M25Pxx series
+	#NOP  				255		#pseudo-cmd, not actual flash cmd
+	#WR_ENABLE  		6
+	#WR_DISABLE  		4
+	#RD_STATUS_REG  	5
+	#WR_STATUS_REG  	1
+	#PAGE_PROGRAM  		2
+	#SECTOR_ERASE  		216
+	#BULK_ERASE  		199
+	#RD_DATA  			3
+
+	#fast read corrsponds to simple read, but it requires dummy cycles (operates at higher freq.)
+	#following the address bytes and can operate at a higher frequency.
+	#F_RD_DATA  		11
+
 @cocotb.test()
 async def test_enable_disasble(dut):
 	"""Check results for serial flash controller write enable/disable operations"""
@@ -723,7 +750,7 @@ async def test_page_r_w(dut):
 
 	for i in range(16):
 		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
-		dut.i_we.value = 0
+		dut.i_we.value = 1
 		dut.i_addr.value = 5 
 		dut.i_data.value = 0		# data to rx
 		await RisingEdge(dut.i_clk)

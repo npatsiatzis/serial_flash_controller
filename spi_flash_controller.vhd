@@ -1,8 +1,13 @@
 --controller for a serial embedded flash (based on the M25Pxx series).
 --communication of commands and data with the flash is made over SPI (mode 3)
 --the M25Pxx series support modes 1 and 3 of SPI.
---the majority of flash commands are supported namely :
---write enable/disable, write/read status register, bulk/sector erase, read data, page program
+--the majority of flash commands are supported by this controller namely :
+--write enable/disable, write/read status register, bulk/sector erase, read data bytes,
+--read data bytes at higher speed, page program
+
+--All commands operate on frequency fC, as specified in the relevant datasheet, here created
+--via the constant SPI_FREQ_REST. The only command that operates on a different (lower) frequency 
+--,namely fR,is the standard READ DATA BYTES command, the frequency of which is created via SPI_FREQ_READ.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -10,22 +15,22 @@ use ieee.numeric_std.all;
 
 entity spi_flash_controller is 
 	generic (
-			g_freq_read : natural := 25_000_000;
-			g_freq_rest : natural := 50_000_000;
+			g_freq_read : natural := 25_000_000;			--spi clock freq. of read data bytes, depends on device grade, voltage etc..
+			g_freq_rest : natural := 50_000_000;			--spi clock freq of commands other that read data bytes
 			g_sys_clk : natural := 200_000_000);			--system clock freq. in Hz
 	port (
 			--system clock and reset
-			i_clk : in std_ulogic;
-			i_arstn : in std_ulogic;
+			i_clk : in std_ulogic;							--system clock
+			i_arstn : in std_ulogic;						--system reset
 
 			--cpu interface
-			i_we : in std_ulogic;
-			i_addr : in std_ulogic_vector(2 downto 0);
-			i_data : in std_ulogic_vector(7 downto 0);
-			o_data : out std_ulogic_vector(7 downto 0);
-			o_byte_tx_done : out std_ulogic;
-			o_byte_rx_done : out std_ulogic;
-			o_dv : out std_ulogic;
+			i_we : in std_ulogic;							--write enable for user registers
+			i_addr : in std_ulogic_vector(2 downto 0);		--address bus for user registers
+			i_data : in std_ulogic_vector(7 downto 0);		--data to write in user registers
+			o_data : out std_ulogic_vector(7 downto 0);		--data read from memory
+			o_byte_tx_done : out std_ulogic;				--flag indicating end of transmit command
+			o_byte_rx_done : out std_ulogic;				--flag indicating end of receive command
+			o_dv : out std_ulogic;							--output data valid
 
 			--flash interface
 			o_c : out std_ulogic;			--serial clock
@@ -40,7 +45,6 @@ architecture rtl of spi_flash_controller is
 	--f_spi_max must be at least /4 of sys clk
 	constant SPI_FREQ_REST : natural := g_freq_rest; 	--clock freq. rest commands. 
 
-	constant SPI_FREQ : natural := 5000000; 		--spi serial clock freq. in Hz
 	signal SPI_CLK_CYCLES : natural := g_sys_clk / SPI_FREQ_REST;
 	--constant SPI_CLK_CYCLES : natural := g_sys_clk / SPI_FREQ; 
 
@@ -50,15 +54,15 @@ architecture rtl of spi_flash_controller is
 	signal w_state : t_state;
 
 	--supported flash commands 
-	--command set codes for serial embedded memory , eg any from ST M25 Pxx series
-
-	constant NOP : std_ulogic_vector(7 downto 0) := "11111111";		--pseudo-cmd, not flash cmd
+	--command set codes for serial embedded memory , eg any from ST M25Pxx series
+	constant NOP : std_ulogic_vector(7 downto 0) := "11111111";		--pseudo-cmd, not actual flash cmd
 	constant WR_ENABLE : std_ulogic_vector(7 downto 0) := "00000110";
 	constant WR_DISABLE : std_ulogic_vector(7 downto 0) := "00000100";
 	constant RD_STATUS_REG : std_ulogic_vector(7 downto 0) := "00000101";
 	constant WR_STATUS_REG : std_ulogic_vector(7 downto 0) := "00000001";
 	constant RD_DATA : std_ulogic_vector(7 downto 0) := "00000011";
-	--fast read corrsponds to simple read, but it requires dummy cycles 
+
+	--fast read corrsponds to simple read, but it requires dummy cycles (operates at higher freq.)
 	--following the address bytes and can operate at a higher frequency.
 	constant F_RD_DATA : std_ulogic_vector(7 downto 0) := "00001011";
 	constant PAGE_PROGRAM : std_ulogic_vector(7 downto 0) := "00000010";
@@ -66,12 +70,19 @@ architecture rtl of spi_flash_controller is
 	constant BULK_ERASE : std_ulogic_vector(7 downto 0) := "11000111";
 
 	--user registers
+
+	--register holding the command code for the next flash command
 	signal cmd_reg : std_ulogic_vector(7 downto 0);
+	--reigster holding the data (if required) for the next flash command
 	signal data_tx_reg : std_ulogic_vector(7 downto 0);
+	--register holding the high byte (A23-A16) of the flash address (if required) for the next flash command
 	signal addr_h_reg : std_ulogic_vector(7 downto 0);
+	--register holding the med. byte (A15-A8) of the flash address (if required) for the next flash command
 	signal addr_m_reg : std_ulogic_vector(7 downto 0);
+	--register holding the low byte (A7-A0) of the flash address (if required) for the next flash command
 	signal addr_l_reg : std_ulogic_vector(7 downto 0);
 
+	--holds the next byte to be transmitted (can be command code/address/data)
 	signal w_data_sreg : std_ulogic_vector(7 downto 0);
 
 	signal w_tx_done : std_ulogic;
@@ -84,7 +95,7 @@ architecture rtl of spi_flash_controller is
 	signal w_new_rx_req : std_ulogic;
 
 	signal w_ss_n : std_ulogic;
-	signal w_sclk : std_ulogic;
+	signal w_sclk, w_sclk_r : std_ulogic;
 	signal w_dv : std_ulogic;
 	signal w_cont : std_ulogic;
 
@@ -96,6 +107,7 @@ architecture rtl of spi_flash_controller is
 
 begin
 
+	--mosi signal line creation for spi mode 3
 	mosi_neg_11 : process(w_sclk,i_arstn) is
 	begin
 		if(i_arstn = '0') then
@@ -105,15 +117,15 @@ begin
 		end if;
 	end process; -- mosi_neg_11
 
+	--creation of tranmission index for spi mode 3
 	--count tx bits on falling edge of sclk
-
 	tx_cnt_neg : process(w_sclk,i_arstn) is
 	begin
 		if(i_arstn = '0') then
 			w_cnt_tx_neg <= (others => '0');
 		elsif (falling_edge(w_sclk)) then
 			w_cnt_tx_neg_r <= w_cnt_tx_neg;
-			if(w_ss_n = '0') then
+			if(w_ss_n = '0' and w_state /= CLEAR_CMD) then
 				if(w_cnt_tx_neg = 7) then
 					w_cnt_tx_neg <= (others => '0');
 				else
@@ -124,8 +136,8 @@ begin
 	end process; -- tx_cntnegs
 
 
-	--Receive End. Group that samples the serial line at the posedge of the serial clock
-
+	--miso signal line creation for spi mode 3
+	--sample the serial line at the posedge of the serial clock
 	pos_sample_miso : process(w_sclk,i_arstn) is
 	begin
 		if(i_arstn = '0') then
@@ -137,8 +149,8 @@ begin
 		end if;
 	end process; -- pos_sample_miso
 
-	--count bits receive on the posedge of the serial clock
-
+	--creation of reception index for spi mode 3
+	--count bits received on the posedge of the serial clock
 	cnt_bits_rx_pos : process(w_sclk,i_arstn) is
 	begin
 		if(i_arstn = '0') then
@@ -146,21 +158,18 @@ begin
 		elsif (rising_edge(w_sclk)) then
 			if(w_ss_n = '0') then
 				w_cnt_rx_pos_r <= w_cnt_rx_pos;
-				if(w_cnt_rx_pos = 7) then
-					w_cnt_rx_pos <= (others => '0');
-				else
-					w_cnt_rx_pos <= w_cnt_rx_pos +1;
-				end if;
+				w_cnt_rx_pos <= w_cnt_tx_neg;
 			end if;
 		end if;
 	end process; -- cnt_bits_rx_pos
 
-
+	--indicate to the spi clock generation module when a continuous transaction is required
 	w_cont <= '1' when (w_state = WAIT1 or w_state = WAIT2 or w_state = WAIT3 or w_state = WAIT4 or w_state = WAIT6 or w_state = WAIT7 or (w_state = WAIT8 and w_new_rx_req = '1') or w_state = TX_DATA or w_state = TX_DUMMY or w_state = RX_DATA  or w_state = TX_ADDR_H or w_state = TX_ADDR_M or w_state = TX_ADDR_L) else '0';
 
 	o_c <= w_sclk;
 	o_s_n <= w_ss_n;
 
+	--instantiation of spi clock generation module
 	sclk_gen : entity work.sclk_gen(rtl)
 	port map(
 			i_clk =>i_clk,
@@ -171,22 +180,22 @@ begin
 			i_leading_cycles =>std_ulogic_vector(to_unsigned(5,8)),
 			i_tailing_cycles =>std_ulogic_vector(to_unsigned(0,8)),
 			i_iddling_cycles =>std_ulogic_vector(to_unsigned(0,8)),
-			i_pol => '1',			--can also change this to 0 to go for spi mode 0 (default here 3)
+			i_pol => '1',			--spi mode 3
 			o_ss_n => w_ss_n,
 			o_sclk => w_sclk
 		);
 
-	----Apart for setting i_pol = '0', this is one extra necessary change to support mode 0.
+	-- 					USER REGISTER MAP
 
-	--mosi_neg_00 : process(all) is
-	--begin
-	--	if(i_arstn = '0') then
-	--		o_dq <= '1';
-	--	else
-	--		o_dq <= w_data_sreg(to_integer((7 - w_cnt_tx_neg)));
-	--	end if;
-	--end process; -- mosi_neg_00
+	-- 			Address 		| 		Functionality
+	--			   0 			|	write flash command code
+	--			   1 			|	write data to tx / keep programming data bytes
+	--			   2 			|	write A23-A16
+	--			   3 			|	write A15-A8
+	--			   4 			|	write A7-A0
+	--			   5 			|	keep reading data bytes
 
+	--manage user registers to organize the operations to be performed on flash
 	manage_regs : process(i_clk,i_arstn) is
 	begin
 		if(i_arstn = '0') then
@@ -200,8 +209,6 @@ begin
 				cmd_reg <= i_data;
 			elsif (unsigned(i_addr) = 1 and i_we = '1') then
 				data_tx_reg <= i_data;
-			--elsif (unsigned(i_addr) = 1 and i_we = '0') then
-			--	o_data <= w_data_read;
 			elsif (unsigned(i_addr) = 2 and i_we = '1') then
 				addr_h_reg <= i_data;
 			elsif (unsigned(i_addr) = 3 and i_we = '1') then
@@ -212,6 +219,13 @@ begin
 		end if;
 	end process; -- manage_regs
 
+	--determine if more bytes are to be programmed on a page (used in page program commnad)
+	--page program on M25Pxx serial flash series can program 1-256 bytes with a single page program.
+	--page program can be terminated (at byte boundary), by driving the chip-select signal high,
+	--even after programming just a single byte
+	--the intention to keep programming bytes is communicated to the controller via writting the
+	--data byte to be transmitted on USER REGISTER 1. the controller then uses this information 
+	--to inform the spi clock generation module that the continuous spi transaction should be continued	
 	detect_new_data_to_tx : process(i_clk,i_arstn) is
 	begin
 		if(i_arstn = '0') then
@@ -225,6 +239,13 @@ begin
 		end if;
 	end process; -- detect_new_data_to_tx
 
+	--determine if more bytes are to be read from the flash (used in read data bytes (at higher speed))
+	--read dat bytes (at higher speed) on M25Pxx serial flash series can read any number of bytes
+	--starting from a single byte to reading the whole flash. Read dta bytes commands can be terminated
+	--at any time (no necessarily at byte boundary), by driving the chip-select signal high.
+	--the intention to keep reading bytes from the memory is communicated to the controller via activating
+	--(writting) USER REGISTER 5. the controller then uses this information 
+	--to inform the spi clock generation module that the continuous spi transaction should be continued 
 	detect_new_rx_request : process(i_clk,i_arstn) is
 	begin
 		if(i_arstn = '0') then 
@@ -232,7 +253,7 @@ begin
 		elsif(rising_edge(i_clk)) then
 			if(w_rx_done = '1') then             
 				w_new_rx_req <= '0';
-			elsif (unsigned(i_addr) = 5 and i_we = '0') then
+			elsif (unsigned(i_addr) = 5 and i_we = '1') then
 				w_new_rx_req <= '1';
 			end if;
 		end if;
@@ -256,6 +277,8 @@ begin
 			o_dv <= '0';
 			SPI_CLK_CYCLES <= g_sys_clk / SPI_FREQ_REST;
 		elsif (rising_edge(i_clk)) then
+			w_sclk_r <= w_sclk;
+
 			w_tx_done <= '0';
 			w_rx_done <= '0';
 			w_dv <= '0';
@@ -440,7 +463,9 @@ begin
 							SPI_CLK_CYCLES <= g_sys_clk/SPI_FREQ_REST;
 					end case;
 				when CLEAR_CMD =>
-					w_state <= IDLE;
+					if(w_ss_n = '1') then
+						w_state <= IDLE;
+					end if;
 				when others =>
 					w_state <= IDLE;
 			end case;
