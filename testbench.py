@@ -747,9 +747,9 @@ async def test_page_r_w(dut):
 	dut.i_data.value = 0		# addr low
 
 	await RisingEdge(dut.i_clk)
+	await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
 
 	for i in range(16):
-		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
 		dut.i_we.value = 1
 		dut.i_addr.value = 5 
 		dut.i_data.value = 0		# data to rx

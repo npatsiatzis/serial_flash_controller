@@ -10,6 +10,7 @@ from cocotb_coverage.coverage import CoverPoint,coverage_db
 
 covered_values = []
 covered_values_fast_read = []
+covered_values_page_rw = []
 
 
 full = False
@@ -48,8 +49,6 @@ class SeqItem(uvm_sequence_item):
 
 
 class RandomSeq(uvm_sequence):
-    # def __init__(self, name):
-    #     super().__init__(name)
         
     async def body(self):
         while(len(covered_values) != 2**8):
@@ -62,8 +61,6 @@ class RandomSeq(uvm_sequence):
             await self.finish_item(data_tr)
 
 class RandomSeq_sequential(uvm_sequence):
-    # def __init__(self, name):
-    #     super().__init__(name)
         
     async def body(self):
         while(len(covered_values_fast_read) != 2**8):
@@ -73,6 +70,19 @@ class RandomSeq_sequential(uvm_sequence):
             while(data_tr.i_crv.tx_data in covered_values_fast_read):
                 data_tr.randomize_operands()
             covered_values_fast_read.append(data_tr.i_crv.tx_data)
+            await self.finish_item(data_tr)
+
+
+class RandomSeq_page_rw(uvm_sequence):
+        
+    async def body(self):
+        while(len(covered_values_page_rw) != 16):
+            data_tr = SeqItem("data_tr", None,None)
+            await self.start_item(data_tr)
+            data_tr.randomize_operands()
+            while(data_tr.i_crv.tx_data in covered_values_page_rw):
+                data_tr.randomize_operands()
+            covered_values_page_rw.append(data_tr.i_crv.tx_data)
             await self.finish_item(data_tr)
 
 class TestAllSeq(uvm_sequence):
@@ -87,6 +97,13 @@ class TestAllFastRead(uvm_sequence):
     async def body(self):
         seqr = ConfigDB().get(None, "", "SEQR")
         random = RandomSeq_sequential("random")
+        await random.start(seqr)
+
+class TestPageRW(uvm_sequence):
+
+    async def body(self):
+        seqr = ConfigDB().get(None, "", "SEQR")
+        random = RandomSeq_page_rw("random")
         await random.start(seqr)
 
 class Driver(uvm_driver):
@@ -216,6 +233,79 @@ class Driver_Fast_Read(uvm_driver):
             data.result = result
             self.seq_item_port.item_done()
 
+
+class Driver_Page_RW(uvm_driver):
+    def build_phase(self):
+        self.ap = uvm_analysis_port("ap", self)
+
+    def start_of_simulation_phase(self):
+        self.bfm = FlashBfm()
+
+    async def launch_tb(self):
+        await self.bfm.reset()
+        self.bfm.start_bfm()
+
+    async def run_phase(self):
+        await self.launch_tb()
+        while True:
+            await self.bfm.send_data((1,0,6))
+            await RisingEdge(self.bfm.dut.i_clk)
+            await FallingEdge(self.bfm.dut.o_byte_tx_done)
+      
+            await self.bfm.send_data((1,0,2))
+            await RisingEdge(self.bfm.dut.i_clk)
+            await FallingEdge(self.bfm.dut.o_byte_tx_done)  
+
+            await self.bfm.send_data((1,2,0))
+            await RisingEdge(self.bfm.dut.i_clk)  
+
+            await self.bfm.send_data((1,3,0))
+            await RisingEdge(self.bfm.dut.i_clk) 
+
+            await self.bfm.send_data((1,4,0))
+            await RisingEdge(self.bfm.dut.i_clk) 
+
+
+            for i in range(16):
+
+                data = await self.seq_item_port.get_next_item()
+                await self.bfm.send_data((1,1,data.i_crv.tx_data))
+                await RisingEdge(self.bfm.dut.i_clk)       
+
+                await self.bfm.send_data((1,7,255))
+                await FallingEdge(self.bfm.dut.o_byte_tx_done)     
+                self.seq_item_port.item_done()
+
+            await self.bfm.send_data((1,0,255))
+            await RisingEdge(self.bfm.dut.i_clk)
+            await ClockCycles(self.bfm.dut.i_clk,10)
+            
+            await self.bfm.send_data((1,0,3))
+            await RisingEdge(self.bfm.dut.i_clk)  
+
+            await self.bfm.send_data((1,2,0))
+            await RisingEdge(self.bfm.dut.i_clk)  
+
+            await self.bfm.send_data((1,3,0))
+            await RisingEdge(self.bfm.dut.i_clk)  
+
+            await self.bfm.send_data((1,4,0))
+            await RisingEdge(self.bfm.dut.i_clk)  
+
+            for i in range(16):
+                await FallingEdge(self.bfm.dut.o_byte_rx_done)
+
+                await self.bfm.send_data((1,5,0))
+                await RisingEdge(self.bfm.dut.i_clk)  
+
+                result = await self.bfm.get_result()
+                self.ap.write(result)
+                data.result = result
+
+            await self.bfm.send_data((1,0,255))
+            await RisingEdge(self.bfm.dut.i_clk)
+            await ClockCycles(self.bfm.dut.i_clk,10)
+
 class Coverage(uvm_subscriber):
 
     def end_of_elaboration_phase(self):
@@ -243,6 +333,32 @@ class Coverage(uvm_subscriber):
                 self.logger.info("Covered all input space")
                 assert True
 
+class CoveragePage(uvm_subscriber):
+
+    def end_of_elaboration_phase(self):
+        self.cvg = set()
+
+    def write(self, data):
+        # (i_wr,i_rd,i_tx_data) = data
+        number_cover(data)
+        if(int(data) not in self.cvg):
+            self.cvg.add(int(data))
+
+    def report_phase(self):
+        try:
+            disable_errors = ConfigDB().get(
+                self, "", "DISABLE_COVERAGE_ERRORS")
+        except UVMConfigItemNotFound:
+            disable_errors = False
+        if not disable_errors:
+            # if len(set(covered_values) - self.cvg) > 0:
+            if len(self.cvg) != 16:
+                self.logger.error(
+                    f"Functional coverage error. Missed: {set(covered_values)-self.cvg}")   
+                assert False
+            else:
+                self.logger.info("Covered all input space")
+                assert True
 
 class Scoreboard(uvm_component):
 
@@ -331,6 +447,22 @@ class Env_Fast_Read(uvm_env):
         self.data_mon.ap.connect(self.coverage.analysis_export)
         self.driver.ap.connect(self.scoreboard.result_export)
 
+class Env_Page_RW(uvm_env):
+
+    def build_phase(self):
+        self.seqr = uvm_sequencer("seqr", self)
+        ConfigDB().set(None, "*", "SEQR", self.seqr)
+        self.driver = Driver_Page_RW.create("driver", self)
+        self.data_mon = Monitor("data_mon", self, "get_data")
+        self.coverage = CoveragePage("coverage", self)
+        self.scoreboard = Scoreboard("scoreboard", self)
+
+    def connect_phase(self):
+        self.driver.seq_item_port.connect(self.seqr.seq_item_export)
+        self.data_mon.ap.connect(self.scoreboard.data_export)
+        self.data_mon.ap.connect(self.coverage.analysis_export)
+        self.driver.ap.connect(self.scoreboard.result_export)
+
 @pyuvm.test()
 class Test(uvm_test):
     """Check results for serial flash controller writing and reading 1 item at a time"""
@@ -380,4 +512,31 @@ class Test_Fast_Read(uvm_test):
 
         coverage_db.report_coverage(cocotb.log.info,bins=True)
         coverage_db.export_to_xml(filename="coverage_fast_read.xml")
+        self.drop_objection()
+
+
+@pyuvm.test()
+class Test_Page_RW(uvm_test):
+    """Check results and coverage for serial flash controller writing and reading whole pages"""
+    # write enable -> write random data to a page (progr. whole page) ->
+    # read data from that page (read whole page)
+    # check that we have read correct data  
+    # write and reads here occur a page at a time
+
+    # commands exercized : write enable, page program, read
+
+    def build_phase(self):
+        self.env = Env_Page_RW("env_page_rw", self)
+        self.bfm = FlashBfm()
+
+    def end_of_elaboration_phase(self):
+        self.test_all = TestPageRW.create("test_all")
+
+    async def run_phase(self):
+        self.raise_objection()
+        cocotb.start_soon(Clock(self.bfm.dut.i_clk, 10, units="ns").start())
+        await self.test_all.start()
+
+        coverage_db.report_coverage(cocotb.log.info,bins=True)
+        coverage_db.export_to_xml(filename="coverage_page_rw.xml")
         self.drop_objection()
