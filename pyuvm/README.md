@@ -1,5 +1,5 @@
-![example workflow](https://github.com/npatsiatzis/serial_flash_controller_pyuvm/actions/workflows/regression.yml/badge.svg)
-![example workflow](https://github.com/npatsiatzis/serial_flash_controller_pyuvm/actions/workflows/coverage.yml/badge.svg)
+![example workflow](https://github.com/npatsiatzis/serial_flash_controller/actions/workflows/regression_pyuvm.yml/badge.svg)
+![example workflow](https://github.com/npatsiatzis/serial_flash_controller/actions/workflows/coverage_pyuvm.yml/badge.svg)
 
 ### controller for serial flash embedded memory (M25Pxx series)
 
