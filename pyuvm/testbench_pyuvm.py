@@ -8,11 +8,8 @@ import pyuvm
 from utils import FlashBfm
 from cocotb_coverage.coverage import CoverPoint,coverage_db
 
-# g_sys_clk = int(cocotb.top.g_sys_clk)
-# period_ns = 10**8 / g_sys_clk
-# g_data_width = int(cocotb.top.g_data_width)
 covered_values = []
-covered_values_seq = []
+covered_values_fast_read = []
 
 
 full = False
@@ -69,13 +66,13 @@ class RandomSeq_sequential(uvm_sequence):
     #     super().__init__(name)
         
     async def body(self):
-        while(len(covered_values_seq) != 2**8):
+        while(len(covered_values_fast_read) != 2**8):
             data_tr = SeqItem("data_tr", None,None)
             await self.start_item(data_tr)
             data_tr.randomize_operands()
-            while(data_tr.i_crv.tx_data in covered_values_seq):
+            while(data_tr.i_crv.tx_data in covered_values_fast_read):
                 data_tr.randomize_operands()
-            covered_values_seq.append(data_tr.i_crv.tx_data)
+            covered_values_fast_read.append(data_tr.i_crv.tx_data)
             await self.finish_item(data_tr)
 
 class TestAllSeq(uvm_sequence):
@@ -85,7 +82,7 @@ class TestAllSeq(uvm_sequence):
         random = RandomSeq("random")
         await random.start(seqr)
 
-class TestAllSeqConsecutive(uvm_sequence):
+class TestAllFastRead(uvm_sequence):
 
     async def body(self):
         seqr = ConfigDB().get(None, "", "SEQR")
@@ -156,10 +153,9 @@ class Driver(uvm_driver):
             self.seq_item_port.item_done()
 
 
-class Driver_Consecutive(uvm_driver):
+class Driver_Fast_Read(uvm_driver):
     def build_phase(self):
         self.ap = uvm_analysis_port("ap", self)
-        self.lst = []
 
     def start_of_simulation_phase(self):
         self.bfm = FlashBfm()
@@ -170,35 +166,55 @@ class Driver_Consecutive(uvm_driver):
 
     async def run_phase(self):
         await self.launch_tb()
-        # while True:
-        for i in range(512):
+        while True:
+            await self.bfm.send_data((1,0,6))
+            await RisingEdge(self.bfm.dut.i_clk)
+            await FallingEdge(self.bfm.dut.o_byte_tx_done)
+      
+            await self.bfm.send_data((1,0,2))
+            await RisingEdge(self.bfm.dut.i_clk)
+            await FallingEdge(self.bfm.dut.o_byte_tx_done)  
+
+            await self.bfm.send_data((1,2,0))
+            await RisingEdge(self.bfm.dut.i_clk)  
+
+            await self.bfm.send_data((1,3,0))
+            await RisingEdge(self.bfm.dut.i_clk) 
+
             data = await self.seq_item_port.get_next_item()
-            self.lst.append(data.i_crv.tx_addr)
-            await self.bfm.send_data((0,0,data.i_crv.tx_addr,data.i_crv.tx_data))
-            await RisingEdge(self.bfm.dut.o_wr_burst_done)
-            self.seq_item_port.item_done()       #You must call item_done() before calling get_next_item again
+            await self.bfm.send_data((1,4,data.i_crv.tx_addr))
+            await RisingEdge(self.bfm.dut.i_clk) 
 
+            await self.bfm.send_data((1,1,data.i_crv.tx_data))
+            await RisingEdge(self.bfm.dut.i_clk)       
 
-        self.bfm.dut.i_ads_n.value = 1
-        await ClockCycles(self.bfm.dut.i_clk,20)
+            await self.bfm.send_data((1,7,255))
+            await FallingEdge(self.bfm.dut.o_byte_tx_done)     
 
-        for i in range(512):
-            addr = self.lst.pop(0)
-            await self.bfm.send_data((1,0,addr,0))
-            await RisingEdge(self.bfm.dut.o_rd_burst_done)
+            await self.bfm.send_data((1,0,255))
+            await RisingEdge(self.bfm.dut.i_clk)
+            await ClockCycles(self.bfm.dut.i_clk,5)
+            
+            await self.bfm.send_data((1,0,11))
+            await RisingEdge(self.bfm.dut.i_clk)  
+
+            await self.bfm.send_data((1,2,0))
+            await RisingEdge(self.bfm.dut.i_clk)  
+
+            await self.bfm.send_data((1,3,0))
+            await RisingEdge(self.bfm.dut.i_clk)  
+
+            await self.bfm.send_data((1,4,data.i_crv.tx_addr))
+            await RisingEdge(self.bfm.dut.i_clk)  
+            await FallingEdge(self.bfm.dut.o_byte_rx_done)
+
+            await self.bfm.send_data((1,0,255))
+            await RisingEdge(self.bfm.dut.i_clk)  
+
             result = await self.bfm.get_result()
             self.ap.write(result)
             data.result = result
-            # self.bfm.dut.i_ads_n.value = 1
-            # await RisingEdge(self.bfm.dut.i_clk)
-
-
-            # await RisingEdge(self.bfm.dut.o_tx_ready)
-            # await self.bfm.send_data((0,0))
-            # result = await self.bfm.get_result()
-            # self.ap.write(result)
-            # data.result = result
-            # self.seq_item_port.item_done()
+            self.seq_item_port.item_done()
 
 class Coverage(uvm_subscriber):
 
@@ -299,12 +315,12 @@ class Env(uvm_env):
         self.driver.ap.connect(self.scoreboard.result_export)
 
 
-class Env_Consecutive(uvm_env):
+class Env_Fast_Read(uvm_env):
 
     def build_phase(self):
         self.seqr = uvm_sequencer("seqr", self)
         ConfigDB().set(None, "*", "SEQR", self.seqr)
-        self.driver = Driver_Consecutive.create("driver", self)
+        self.driver = Driver_Fast_Read.create("driver", self)
         self.data_mon = Monitor("data_mon", self, "get_data")
         self.coverage = Coverage("coverage", self)
         self.scoreboard = Scoreboard("scoreboard", self)
@@ -317,7 +333,12 @@ class Env_Consecutive(uvm_env):
 
 @pyuvm.test()
 class Test(uvm_test):
-    """Test UART rx-tx loopback with random values"""
+    """Check results for serial flash controller writing and reading 1 item at a time"""
+    # write enable -> write random data to random address -> read data from that random address
+    # check that we have read correct data (50 repetitions) 
+    # write and reads here are single, they do not occur in burst like fashion
+
+    # commands exercized : write enable, page program, read
 
     def build_phase(self):
         self.env = Env("env", self)
@@ -336,22 +357,27 @@ class Test(uvm_test):
         self.drop_objection()
 
 
-# @pyuvm.test()
-# class Test_Consecutive(uvm_test):
-#     """Test UART rx-tx loopback with random values"""
+@pyuvm.test()
+class Test_Fast_Read(uvm_test):
+    """Check results for serial flash controller writing and reading (fast read) 1 item at a time"""
+    # write enable -> write random data to random address -> fast read data from that random address
+    # check that we have read correct data (50 repetitions) 
+    # write and reads (fast) here are single, they do not occur in burst like fashion
 
-#     def build_phase(self):
-#         self.env = Env_Consecutive("env_consecutive", self)
-#         self.bfm = FlashBfm()
+    # commands exercized : write enable, page program, read
 
-#     def end_of_elaboration_phase(self):
-#         self.test_all = TestAllSeqConsecutive.create("test_all")
+    def build_phase(self):
+        self.env = Env_Fast_Read("env_fast_read", self)
+        self.bfm = FlashBfm()
 
-#     async def run_phase(self):
-#         self.raise_objection()
-#         cocotb.start_soon(Clock(self.bfm.dut.i_clk, 10, units="ns").start())
-#         await self.test_all.start()
+    def end_of_elaboration_phase(self):
+        self.test_all = TestAllFastRead.create("test_all")
 
-#         coverage_db.report_coverage(cocotb.log.info,bins=True)
-#         coverage_db.export_to_xml(filename="coverage_consecutive.xml")
-#         self.drop_objection()
+    async def run_phase(self):
+        self.raise_objection()
+        cocotb.start_soon(Clock(self.bfm.dut.i_clk, 10, units="ns").start())
+        await self.test_all.start()
+
+        coverage_db.report_coverage(cocotb.log.info,bins=True)
+        coverage_db.export_to_xml(filename="coverage_fast_read.xml")
+        self.drop_objection()
