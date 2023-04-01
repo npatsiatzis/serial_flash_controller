@@ -105,6 +105,7 @@ architecture rtl of spi_flash_controller is
 	signal w_sr_rx_pos_sclk : std_ulogic_vector(7 downto 0);
 	signal w_data_read : std_ulogic_vector(7 downto 0);
 
+
 begin
 
 	--mosi signal line creation for spi mode 3
@@ -205,16 +206,21 @@ begin
 			addr_m_reg <= (others => '0');
 			addr_l_reg <= (others => '0');
 		elsif (rising_edge(i_clk)) then
-			if(unsigned(i_addr)  = 0 and i_we = '1') then
-				cmd_reg <= i_data;
-			elsif (unsigned(i_addr) = 1 and i_we = '1') then
-				data_tx_reg <= i_data;
-			elsif (unsigned(i_addr) = 2 and i_we = '1') then
-				addr_h_reg <= i_data;
-			elsif (unsigned(i_addr) = 3 and i_we = '1') then
-				addr_m_reg <= i_data;
-			elsif (unsigned(i_addr) = 4 and i_we = '1') then
-				addr_l_reg <= i_data;
+			if(i_we = '1') then
+				case i_addr is 
+					when "000" =>
+						cmd_reg <= i_data;
+					when "001" =>
+						data_tx_reg <= i_data;
+					when "010" =>
+						addr_h_reg <= i_data;
+					when "011" =>
+						addr_m_reg <= i_data;
+					when "100" =>
+						addr_l_reg <= i_data;
+					when others =>
+						null;
+				end case;
 			end if;
 		end if;
 	end process; -- manage_regs
