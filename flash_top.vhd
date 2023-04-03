@@ -7,16 +7,25 @@ entity flash_top is
 			g_freq_rest : natural := 50_000_000;
 			g_sys_clk : natural := 200_000_000);			--system clock freq. in Hz
 	port (
+			--system clock and reset
 	 		i_clk : in std_ulogic;
 	 		i_arstn : in std_ulogic;
+
+	 		--wb (slave) interface
 	 		i_we : in std_ulogic;
+	 		i_stb : in std_ulogic;
 	 		i_addr : in std_logic_vector(2 downto 0);
 	 		i_data : in std_logic_vector(7 downto 0);
+	 		o_ack : out std_ulogic;
 	 		o_data : out std_logic_vector(7 downto 0);
+
+
+	 		--interrupts
 	 		o_byte_tx_done : out std_ulogic;
 	 		o_byte_rx_done : out std_ulogic;
 	 		o_dv : out std_ulogic;
 
+	 		--spi interface
 	 		i_dq : in std_ulogic;
 	 		o_c : out std_ulogic;
 	 		o_s_n : out std_ulogic;
@@ -37,16 +46,20 @@ begin
 			i_clk  =>i_clk,
 			i_arstn  =>i_arstn,
 
-			--cpu interface
+			--wb (slave) interface
 			i_we  =>i_we,
+			i_stb => i_stb,
 			i_addr =>i_addr,
 			i_data =>i_data,
+			o_ack => o_ack,
 			o_data =>o_data,
+
+			--interrupts
 			o_byte_tx_done =>o_byte_tx_done,
 			o_byte_rx_done =>o_byte_rx_done,
 			o_dv => o_dv,
 
-			--flash interface
+			--spi interface
 			o_c =>o_c,			
 			o_s_n =>o_s_n,			
 			i_dq  =>w_dq,			

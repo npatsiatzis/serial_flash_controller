@@ -27,6 +27,7 @@ def number_cover(data):
 async def reset(dut,cycles=1):
 	dut.i_arstn.value = 0
 	dut.i_we.value = 0
+	dut.i_stb.value = 0
 	dut.i_addr.value = 0
 	dut.i_data.value = 0
 	dut.i_dq.value = 0  
@@ -78,24 +79,29 @@ async def test_enable_disasble(dut):
 	lst = []
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 0 
 	dut.i_data.value = 6		# cmd WR ENABLE
 
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 
 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 0 
 	dut.i_data.value = 4		# cmd WR disable
 
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 
 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 	for i in range(2):
 	
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 1		# cmd write status register
 
@@ -108,48 +114,69 @@ async def test_enable_disasble(dut):
 			bin_data = BinaryValue(value=data)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 1
 		dut.i_data.value = data
 		 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 7
 		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
+
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0
 		dut.i_data.value = 255
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
+
 		await ClockCycles(dut.i_clk,5)
 
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 5		# cmd read status register
 		await RisingEdge(dut.i_clk)
-
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 255		# NOP command
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_dv)
+
+		dut.i_we.value = 0
+		dut.i_stb.value = 1
+		dut.i_addr.value = 5 		# read rx data
+		dut.i_data.value = 0
+		await RisingEdge(dut.o_ack)				
 		lst.append(dut.o_data.value)
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await ClockCycles(dut.i_clk,5)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 6		# cmd WR ENABLE
 
 		await RisingEdge(dut.i_clk)
-
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 	assert not (0 != lst[0]),"Different expected to actual read data"
@@ -171,14 +198,17 @@ async def test_status_reg(dut):
 	for i in range(5):
 	
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 6		# cmd WR ENABLE
 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 	
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 1		# cmd write status register
 
@@ -191,39 +221,58 @@ async def test_status_reg(dut):
 			bin_data = BinaryValue(value=data)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 1
 		dut.i_data.value = data
 		 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 7
 		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0
 		dut.i_data.value = 255
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await ClockCycles(dut.i_clk,5)
 
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 5		# cmd read status register
 		await RisingEdge(dut.i_clk)
-
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 255		# NOP command
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_dv)
+
+		dut.i_we.value = 0
+		dut.i_stb.value = 1
+		dut.i_addr.value = 5 		# read rx data
+		dut.i_data.value = 0
+		await RisingEdge(dut.o_ack)				
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
+
 		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
 		await ClockCycles(dut.i_clk,5)
 
@@ -250,35 +299,41 @@ async def test_erase(dut):
 	for i in range(5):
 	
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 6		# cmd WR ENABLE
 
 		await RisingEdge(dut.i_clk)
-
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 	
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 2		# cmd page program
 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 		addr = random.randint(165,2**8-1)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 2 
 		dut.i_data.value = 0		# addr high
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 3 
 		dut.i_data.value = 0		# addr m
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 4 
 		dut.i_data.value = addr		# addr low
 
@@ -287,134 +342,181 @@ async def test_erase(dut):
 		data = random.randint(165,2**8-1)
 		lst.append(data)
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 1
 		dut.i_data.value = data 
 		await RisingEdge(dut.i_clk)
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 7
 		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0
 		dut.i_data.value = 255
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await ClockCycles(dut.i_clk,5)
 
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 3		# cmd RD data
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 2 
 		dut.i_data.value = 0		# addr high
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 3 
 		dut.i_data.value = 0		# addr m
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 4 
 		dut.i_data.value = addr		# addr low
 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 
 		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 255		# NOP command
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_dv)
+
+		dut.i_we.value = 0
+		dut.i_stb.value = 1
+		dut.i_addr.value = 5 		# read rx data
+		dut.i_data.value = 0
+		await RisingEdge(dut.o_ack)				
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
+
 		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
 
 	await ClockCycles(dut.i_clk,5)
 
 	
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 0 
 	dut.i_data.value = 6		# cmd WR ENABLE
 
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 
 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
 	# dut.i_addr.value = 0 
 	# dut.i_data.value = 199		# cmd bulk erase (no need to specify A23-A0)
 
 	#or go for an erase of a specific sector (specify sector by A23-A0)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 0 
 	dut.i_data.value = 216		# cmd sector erase
 
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 	addr = random.randint(165,2**8-1)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 2 
 	dut.i_data.value = 0		# addr high
 
 	await RisingEdge(dut.i_clk)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 3 
 	dut.i_data.value = 0		# addr m
 
 	await RisingEdge(dut.i_clk)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 4 
 	dut.i_data.value = addr		# addr low
 
 
 
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 
 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 0 
 	dut.i_data.value = 3		# cmd RD data
 	await RisingEdge(dut.i_clk)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 2 
 	dut.i_data.value = 0		# addr high
 
 	await RisingEdge(dut.i_clk)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 3 
 	dut.i_data.value = 0		# addr m
 
 	await RisingEdge(dut.i_clk)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 4 
 	dut.i_data.value = addr		# addr low
 
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 
 	await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 0 
 	dut.i_data.value = 255		# NOP command
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 	await FallingEdge(dut.o_dv)
+
+	dut.i_we.value = 0
+	dut.i_stb.value = 1
+	dut.i_addr.value = 5 		# read rx data
+	dut.i_data.value = 0
+	await RisingEdge(dut.o_ack)				
+	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
+
 	assert not (255 != int(dut.o_data.value)),"Different expected to actual read data"
 
 	await ClockCycles(dut.i_clk,5)
@@ -438,36 +540,43 @@ async def test_single_r_w(dut):
 	for i in range(50):
 	
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 6		# cmd WR ENABLE
 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 	
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 2		# cmd page program
 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 		addr = random.randint(165,2**8-1)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 2 
 		dut.i_data.value = 0		# addr high
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 3 
 		dut.i_data.value = 0		# addr m
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 4 
 		dut.i_data.value = addr		# addr low
 
@@ -476,54 +585,76 @@ async def test_single_r_w(dut):
 		data = random.randint(165,2**8-1)
 		lst.append(data)
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 1
 		dut.i_data.value = data 
 		await RisingEdge(dut.i_clk)
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 7
 		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0
 		dut.i_data.value = 255
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await ClockCycles(dut.i_clk,5)
 
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 3		# cmd RD data
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 2 
 		dut.i_data.value = 0		# addr high
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 3 
 		dut.i_data.value = 0		# addr m
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 4 
 		dut.i_data.value = addr		# addr low
 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 
 		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 255		# NOP command
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_dv)
+
+		dut.i_we.value = 0
+		dut.i_stb.value = 1
+		dut.i_addr.value = 5 		# read rx data
+		dut.i_data.value = 0
+		await RisingEdge(dut.o_ack)				
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
+
 		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
 
 
@@ -546,36 +677,43 @@ async def test_fast_read_single_r_w(dut):
 	for i in range(50):
 	
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 6		# cmd WR ENABLE
 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 	
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 2		# cmd page program
 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 		addr = random.randint(165,2**8-1)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 2 
 		dut.i_data.value = 0		# addr high
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 3 
 		dut.i_data.value = 0		# addr m
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 4 
 		dut.i_data.value = addr		# addr low
 
@@ -584,54 +722,76 @@ async def test_fast_read_single_r_w(dut):
 		data = random.randint(165,2**8-1)
 		lst.append(data)
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 1
 		dut.i_data.value = data 
 		await RisingEdge(dut.i_clk)
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 7
 		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0
 		dut.i_data.value = 255
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await ClockCycles(dut.i_clk,5)
 
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
-		dut.i_data.value = 11		# cmd (fast) RD data
+		dut.i_data.value = 11		# cmd RD data
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 2 
 		dut.i_data.value = 0		# addr high
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 3 
 		dut.i_data.value = 0		# addr m
 
 		await RisingEdge(dut.i_clk)
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 4 
 		dut.i_data.value = addr		# addr low
 
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 
 		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 0 
 		dut.i_data.value = 255		# NOP command
 		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_dv)
+
+		dut.i_we.value = 0
+		dut.i_stb.value = 1
+		dut.i_addr.value = 5 		# read rx data
+		dut.i_data.value = 0
+		await RisingEdge(dut.o_ack)				
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
+	
 		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
 
 
@@ -654,33 +814,40 @@ async def test_page_r_w(dut):
 
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 0 
 	dut.i_data.value = 6		# cmd WR ENABLE
 
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 
 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 	
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 0 
 	dut.i_data.value = 2		# cmd page program
 
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 2 
 	dut.i_data.value = 0		# addr high
 
 	await RisingEdge(dut.i_clk)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 3 
 	dut.i_data.value = 0		# addr m
 
 	await RisingEdge(dut.i_clk)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 4 
 	dut.i_data.value = 0		# addr low
 
@@ -692,6 +859,7 @@ async def test_page_r_w(dut):
 	for i in range(16):				#number of bytes in page in sim. model
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 1
 		data = random.randint(0,2**4-1)
 		while(data in covered_valued):
@@ -704,57 +872,72 @@ async def test_page_r_w(dut):
 
 
 		dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_addr.value = 7
 		dut.i_data.value = 255
+		await RisingEdge(dut.i_clk)
+		dut.i_stb.value = 0
 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
-		# dut.i_we.value = 1
-		# dut.i_addr.value = 0 
-		# dut.i_data.value = 6		# cmd WR ENABLE
-
-		# await RisingEdge(dut.i_clk)
-
-		# await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 0
 	dut.i_data.value = 255
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 	await ClockCycles(dut.i_clk,100)
 
 
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 0 
 	dut.i_data.value = 3		# cmd RD data
 	await RisingEdge(dut.i_clk)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 2 
 	dut.i_data.value = 0		# addr high
 
 	await RisingEdge(dut.i_clk)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 3 
 	dut.i_data.value = 0		# addr m
 
 	await RisingEdge(dut.i_clk)
 
 	dut.i_we.value = 1
+	dut.i_stb.value = 1
 	dut.i_addr.value = 4 
 	dut.i_data.value = 0		# addr low
 
 	await RisingEdge(dut.i_clk)
+	dut.i_stb.value = 0
 	await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
 
 	for i in range(16):
+		# dut.i_we.value = 1
+		dut.i_stb.value = 1
 		dut.i_we.value = 1
 		dut.i_addr.value = 5 
 		dut.i_data.value = 0		# data to rx
+
+		await RisingEdge(dut.o_dv)
 		await RisingEdge(dut.i_clk)
-		await FallingEdge(dut.o_dv)
+		
+		dut.i_we.value = 0
+		dut.i_stb.value = 1
+		dut.i_addr.value = 5 		# read rx data
+		dut.i_data.value = 0
+		await RisingEdge(dut.i_clk)
+		await RisingEdge(dut.i_clk)	
+
+
 		expected_value = lst.pop(0)
 		assert not (expected_value != int(dut.o_data.value)),"Different expected to actual read data"
 
