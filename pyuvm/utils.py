@@ -34,6 +34,7 @@ class FlashBfm(metaclass=utility_classes.Singleton):
         self.dut.i_arstn.value = 0
         self.dut.i_we.value = 0
         self.dut.i_addr.value = 0
+        self.dut.i_stb.value = 0
         self.dut.i_data.value = 0
         self.dut.i_dq.value = 0  
         await ClockCycles(self.dut.i_clk,5)
@@ -46,8 +47,9 @@ class FlashBfm(metaclass=utility_classes.Singleton):
         while True:
             await RisingEdge(self.dut.i_clk)
             try:
-                (i_we,i_addr,i_data) = self.driver_queue.get_nowait()
+                (i_we,i_stb,i_addr,i_data) = self.driver_queue.get_nowait()
                 self.dut.i_we.value = i_we
+                self.dut.i_stb.value = i_stb
                 self.dut.i_addr.value = i_addr
                 self.dut.i_data.value = i_data
 
@@ -64,6 +66,8 @@ class FlashBfm(metaclass=utility_classes.Singleton):
     async def result_mon_bfm(self):
         while True:
             await FallingEdge(self.dut.o_dv)
+            await RisingEdge(self.dut.o_ack)             
+            await RisingEdge(self.dut.i_clk)
             self.result_mon_queue.put_nowait(self.dut.o_data.value)
 
 

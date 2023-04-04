@@ -23,16 +23,20 @@ entity spi_flash_controller is
 			i_clk : in std_ulogic;							--system clock
 			i_arstn : in std_ulogic;						--system reset
 
-			--cpu interface
+			--wb (slave) interface
 			i_we : in std_ulogic;							--write enable for user registers
+			i_stb : in std_ulogic;							--input strobe, validates other intf signals
 			i_addr : in std_ulogic_vector(2 downto 0);		--address bus for user registers
 			i_data : in std_ulogic_vector(7 downto 0);		--data to write in user registers
+			o_ack : out std_ulogic;
 			o_data : out std_ulogic_vector(7 downto 0);		--data read from memory
+			
+			--interrupts
 			o_byte_tx_done : out std_ulogic;				--flag indicating end of transmit command
 			o_byte_rx_done : out std_ulogic;				--flag indicating end of receive command
 			o_dv : out std_ulogic;							--output data valid
 
-			--flash interface
+			--spi interface
 			o_c : out std_ulogic;			--serial clock
 			o_s_n : out std_ulogic;			--chip select
 			i_dq : in std_ulogic;			--input serial line
@@ -73,8 +77,10 @@ architecture rtl of spi_flash_controller is
 
 	--register holding the command code for the next flash command
 	signal cmd_reg : std_ulogic_vector(7 downto 0);
-	--reigster holding the data (if required) for the next flash command
+	--register holding the data (if required) for the next flash command
 	signal data_tx_reg : std_ulogic_vector(7 downto 0);
+	--register holding rx data
+	signal data_rx_reg : std_ulogic_vector(7 downto 0);
 	--register holding the high byte (A23-A16) of the flash address (if required) for the next flash command
 	signal addr_h_reg : std_ulogic_vector(7 downto 0);
 	--register holding the med. byte (A15-A8) of the flash address (if required) for the next flash command
@@ -104,6 +110,7 @@ architecture rtl of spi_flash_controller is
 	signal w_cnt_rx_pos, w_cnt_rx_pos_r : unsigned(4 downto 0);
 	signal w_sr_rx_pos_sclk : std_ulogic_vector(7 downto 0);
 	signal w_data_read : std_ulogic_vector(7 downto 0);
+
 
 begin
 
@@ -185,7 +192,7 @@ begin
 			o_sclk => w_sclk
 		);
 
-	-- 					USER REGISTER MAP
+	-- 					INTERFACE REGISTER MAP
 
 	-- 			Address 		| 		Functionality
 	--			   0 			|	write flash command code
@@ -199,22 +206,35 @@ begin
 	manage_regs : process(i_clk,i_arstn) is
 	begin
 		if(i_arstn = '0') then
+			o_ack <= '0';
 			cmd_reg <= NOP;
 			data_tx_reg <= (others => '0');
 			addr_h_reg <= (others => '0');
 			addr_m_reg <= (others => '0');
 			addr_l_reg <= (others => '0');
 		elsif (rising_edge(i_clk)) then
-			if(unsigned(i_addr)  = 0 and i_we = '1') then
-				cmd_reg <= i_data;
-			elsif (unsigned(i_addr) = 1 and i_we = '1') then
-				data_tx_reg <= i_data;
-			elsif (unsigned(i_addr) = 2 and i_we = '1') then
-				addr_h_reg <= i_data;
-			elsif (unsigned(i_addr) = 3 and i_we = '1') then
-				addr_m_reg <= i_data;
-			elsif (unsigned(i_addr) = 4 and i_we = '1') then
-				addr_l_reg <= i_data;
+			o_ack <= '0';
+			if(i_stb = '1' and i_we = '1') then
+				o_ack <= '1';
+				case i_addr is 
+					when "000" =>
+						cmd_reg <= i_data;
+					when "001" =>
+						data_tx_reg <= i_data;
+					when "010" =>
+						addr_h_reg <= i_data;
+					when "011" =>
+						addr_m_reg <= i_data;
+					when "100" =>
+						addr_l_reg <= i_data;
+					when others =>
+						null;
+				end case;
+			elsif (i_stb = '1' and i_we = '0') then
+				o_ack <= '1';
+				if(i_addr = "101") then
+					o_data <= data_rx_reg;
+				end if;
 			end if;
 		end if;
 	end process; -- manage_regs
@@ -233,7 +253,7 @@ begin
 		elsif (rising_edge(i_clk)) then
 			if(w_tx_done ='1') then             
 				w_new_data_to_tx <= '0';
-			elsif (unsigned(i_addr) = 1 and i_we = '1') then
+			elsif (i_stb = '1' and unsigned(i_addr) = 1 and i_we = '1') then
 				w_new_data_to_tx <= '1';
 			end if;
 		end if;
@@ -253,7 +273,7 @@ begin
 		elsif(rising_edge(i_clk)) then
 			if(w_rx_done = '1') then             
 				w_new_rx_req <= '0';
-			elsif (unsigned(i_addr) = 5 and i_we = '1') then
+			elsif (i_stb = '1' and  unsigned(i_addr) = 5 and i_we = '1') then
 				w_new_rx_req <= '1';
 			end if;
 		end if;
@@ -411,7 +431,8 @@ begin
 							w_state <= CLEAR_CMD;
 					end case;
 				when WAIT5 =>
-					o_data <= w_sr_rx_pos_sclk;
+					data_rx_reg <= w_sr_rx_pos_sclk;
+					--o_data <= w_sr_rx_pos_sclk;
 					o_dv <= '1';
 					w_data_read <= w_sr_rx_pos_sclk;
 					w_state <= CLEAR_CMD;
@@ -443,13 +464,15 @@ begin
 						end case;
 					end if;
 				--when WAIT8 =>
+					--data_rx_reg <= w_sr_rx_pos_sclk;		--<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 				--	o_data <= w_sr_rx_pos_sclk;
 				--	o_dv <= '1';
 				--	w_data_read <= w_sr_rx_pos_sclk;
 				--	w_state <= CLEAR_CMD;
 				when WAIT7 =>
 					w_data_read <= w_sr_rx_pos_sclk;
-					o_data <= w_sr_rx_pos_sclk;
+					data_rx_reg <= w_sr_rx_pos_sclk;
+					--o_data <= w_sr_rx_pos_sclk;
 					o_dv <= '1';
 					case cmd_reg is
 						when RD_DATA | F_RD_DATA =>
