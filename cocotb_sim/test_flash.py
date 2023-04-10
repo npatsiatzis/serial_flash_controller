@@ -19,10 +19,10 @@ def test_flash(g_freq_read,g_freq_rest):
     module = "testbench"
     toplevel = "flash_top"   
     vhdl_sources = [
-        os.path.join(rtl_dir, "sclk_gen.vhd"),
-        os.path.join(rtl_dir, "spi_flash_controller.vhd"),
-        os.path.join(rtl_dir, "serial_flash_sim_model.vhd"),
-        os.path.join(rtl_dir, "flash_top.vhd"),
+        os.path.join(rtl_dir, "../rtl/sclk_gen.vhd"),
+        os.path.join(rtl_dir, "../rtl/spi_flash_controller.vhd"),
+        os.path.join(rtl_dir, "../rtl/serial_flash_sim_model.vhd"),
+        os.path.join(rtl_dir, "../rtl/flash_top.vhd"),
         ]
 
     parameter = {}

@@ -6,12 +6,12 @@ TOPLEVEL_LANG ?= vhdl
 EXTRA_ARGS += --std=08
 SIM_ARGS += --wave=wave.ghw
 
-VHDL_SOURCES += $(PWD)/sclk_gen.vhd
-VHDL_SOURCES += $(PWD)/spi_flash_controller.vhd
-VHDL_SOURCES += $(PWD)/serial_flash_sim_model.vhd
-VHDL_SOURCES += $(PWD)/flash_top.vhd
-VHDL_SOURCES += $(PWD)/m25p80_sim_model.vhd
-VHDL_SOURCES += $(PWD)/top.vhd
+VHDL_SOURCES += $(PWD)/../rtl/sclk_gen.vhd
+VHDL_SOURCES += $(PWD)/../rtl/spi_flash_controller.vhd
+VHDL_SOURCES += $(PWD)/../rtl/serial_flash_sim_model.vhd
+VHDL_SOURCES += $(PWD)/../rtl/flash_top.vhd
+VHDL_SOURCES += $(PWD)/../rtl/m25p80_sim_model.vhd
+VHDL_SOURCES += $(PWD)/../rtl/top.vhd
 # use VHDL_SOURCES for VHDL files
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
