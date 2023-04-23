@@ -13,6 +13,7 @@ VHDL_SOURCES += $(PWD)/../rtl/sclk_gen.vhd
 VHDL_SOURCES += $(PWD)/../rtl/spi_flash_controller.vhd
 VHDL_SOURCES += $(PWD)/../rtl/serial_flash_sim_model.vhd
 VHDL_SOURCES += $(PWD)/../rtl/flash_top.vhd
+VHDL_SOURCES += $(PWD)/../rtl/flash_top_axi.vhd
 VHDL_SOURCES += $(PWD)/../rtl/m25p80_sim_model.vhd
 VHDL_SOURCES += $(PWD)/../rtl/top.vhd
 VHDL_SOURCES += $(PWD)/../rtl/top_axi.vhd
@@ -30,5 +31,9 @@ test_micron_axi:
 test_custom_sim_model:
 		rm -rf sim_build
 		$(MAKE) sim MODULE=testbench TOPLEVEL=flash_top
+
+test_custom_sim_model_axi:
+		rm -rf sim_build
+		$(MAKE) sim MODULE=testbench_axi TOPLEVEL=flash_top_axi
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
