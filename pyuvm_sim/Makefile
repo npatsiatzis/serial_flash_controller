@@ -6,6 +6,8 @@ TOPLEVEL_LANG ?= vhdl
 EXTRA_ARGS += --std=08
 SIM_ARGS += --wave=wave.ghw
 
+VHDL_SOURCES += $(PWD)/../rtl/flash_controller_pkg.vhd
+VHDL_SOURCES += $(PWD)/../rtl/wb_regs.vhd
 VHDL_SOURCES += $(PWD)/../rtl/sclk_gen.vhd
 VHDL_SOURCES += $(PWD)/../rtl/spi_flash_controller.vhd
 VHDL_SOURCES += $(PWD)/../rtl/serial_flash_sim_model.vhd

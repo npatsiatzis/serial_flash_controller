@@ -36,8 +36,34 @@ end top;
 architecture rtl of top is
 	signal q : std_ulogic;
 	signal f_is_data_to_tx : std_ulogic;
+	signal w_cmd_reg, w_tx_reg, w_addr_h_reg, w_addr_m_reg, w_addr_l_reg : std_ulogic_vector(7 downto 0);
+	signal w_flash_rd_data : std_ulogic_vector(7 downto 0);
 begin
 	f_is_data_to_tx <= '1' when (i_we = '1' and unsigned(i_addr) = 1) else '0';
+
+	wb_regs : entity work.wb_regs(rtl)
+	port map(
+		i_clk =>i_clk,
+		i_arstn =>i_arstn,
+
+		--wishbone b4 (slave) interface
+		i_we  =>i_we,
+		i_stb =>i_stb,
+		i_addr =>i_addr,
+		i_data =>i_data,
+		o_ack => o_ack,
+		o_data =>o_data,
+
+		--data read from sdram
+		i_flash_rd_data =>w_flash_rd_data,
+
+		--ports for write regs to hierarchy
+		o_cmd_reg  =>w_cmd_reg,
+		o_addr_h_reg  =>w_addr_h_reg,
+		o_addr_m_reg  =>w_addr_m_reg,
+		o_addr_l_reg  =>w_addr_l_reg,
+		o_tx_reg =>w_tx_reg
+		);
 
 	spi_flash_controller : entity work.spi_flash_controller(rtl)
 	generic map(
@@ -51,9 +77,13 @@ begin
 	 		i_we =>i_we,
 	 		i_stb => i_stb,
 	 		i_addr =>i_addr,
-	 		i_data =>i_data,
-	 		o_ack => o_ack,
-	 		o_data =>o_data,
+	 		i_cmd => w_cmd_reg,
+	 		i_addr_h => w_addr_h_reg,
+	 		i_addr_m => w_addr_m_reg,
+	 		i_addr_l => w_addr_l_reg,
+	 		i_data =>w_tx_reg,
+	 		--o_ack => o_ack,
+	 		o_data =>w_flash_rd_data,
 
 	 		o_byte_tx_done =>o_byte_tx_done,
 	 		o_byte_rx_done =>o_byte_rx_done,

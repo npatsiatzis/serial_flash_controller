@@ -12,6 +12,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.flash_controller_pkg.all;
 
 entity spi_flash_controller is 
 	generic (
@@ -27,8 +28,12 @@ entity spi_flash_controller is
 			i_we : in std_ulogic;							--write enable for user registers
 			i_stb : in std_ulogic;							--input strobe, validates other intf signals
 			i_addr : in std_ulogic_vector(2 downto 0);		--address bus for user registers
+			i_cmd : in std_ulogic_vector(7 downto 0);
+			i_addr_h : in std_ulogic_vector(7 downto 0);
+			i_addr_m : in std_ulogic_vector(7 downto 0);
+			i_addr_l : in std_ulogic_vector(7 downto 0);
 			i_data : in std_ulogic_vector(7 downto 0);		--data to write in user registers
-			o_ack : out std_ulogic;
+			--o_ack : out std_ulogic;
 			o_data : out std_ulogic_vector(7 downto 0);		--data read from memory
 			
 			--interrupts
@@ -56,38 +61,8 @@ architecture rtl of spi_flash_controller is
 		WAIT1,WAIT2,WAIT3,WAIT4,WAIT5,WAIT6,WAIT7,WAIT8, CLEAR_CMD);
 
 	signal w_state : t_state;
-
-	--supported flash commands 
-	--command set codes for serial embedded memory , eg any from ST M25Pxx series
-	constant NOP : std_ulogic_vector(7 downto 0) := "11111111";		--pseudo-cmd, not actual flash cmd
-	constant WR_ENABLE : std_ulogic_vector(7 downto 0) := "00000110";
-	constant WR_DISABLE : std_ulogic_vector(7 downto 0) := "00000100";
-	constant RD_STATUS_REG : std_ulogic_vector(7 downto 0) := "00000101";
-	constant WR_STATUS_REG : std_ulogic_vector(7 downto 0) := "00000001";
-	constant RD_DATA : std_ulogic_vector(7 downto 0) := "00000011";
-
-	--fast read corrsponds to simple read, but it requires dummy cycles (operates at higher freq.)
-	--following the address bytes and can operate at a higher frequency.
-	constant F_RD_DATA : std_ulogic_vector(7 downto 0) := "00001011";
-	constant PAGE_PROGRAM : std_ulogic_vector(7 downto 0) := "00000010";
-	constant SECTOR_ERASE : std_ulogic_vector(7 downto 0) := "11011000";
-	constant BULK_ERASE : std_ulogic_vector(7 downto 0) := "11000111";
-
-	--user registers
-
-	--register holding the command code for the next flash command
-	signal cmd_reg : std_ulogic_vector(7 downto 0);
-	--register holding the data (if required) for the next flash command
-	signal data_tx_reg : std_ulogic_vector(7 downto 0);
 	--register holding rx data
 	signal data_rx_reg : std_ulogic_vector(7 downto 0);
-	--register holding the high byte (A23-A16) of the flash address (if required) for the next flash command
-	signal addr_h_reg : std_ulogic_vector(7 downto 0);
-	--register holding the med. byte (A15-A8) of the flash address (if required) for the next flash command
-	signal addr_m_reg : std_ulogic_vector(7 downto 0);
-	--register holding the low byte (A7-A0) of the flash address (if required) for the next flash command
-	signal addr_l_reg : std_ulogic_vector(7 downto 0);
-
 	--holds the next byte to be transmitted (can be command code/address/data)
 	signal w_data_sreg : std_ulogic_vector(7 downto 0);
 
@@ -192,52 +167,9 @@ begin
 			o_sclk => w_sclk
 		);
 
-	-- 					INTERFACE REGISTER MAP
 
-	-- 			Address 		| 		Functionality
-	--			   0 			|	write flash command code
-	--			   1 			|	write data to tx / keep programming data bytes
-	--			   2 			|	write A23-A16
-	--			   3 			|	write A15-A8
-	--			   4 			|	write A7-A0
-	--			   5 			|	keep reading data bytes
+	o_data <= data_rx_reg;
 
-	--manage user registers to organize the operations to be performed on flash
-	manage_regs : process(i_clk,i_arstn) is
-	begin
-		if(i_arstn = '0') then
-			o_ack <= '0';
-			cmd_reg <= NOP;
-			data_tx_reg <= (others => '0');
-			addr_h_reg <= (others => '0');
-			addr_m_reg <= (others => '0');
-			addr_l_reg <= (others => '0');
-		elsif (rising_edge(i_clk)) then
-			o_ack <= '0';
-			if(i_stb = '1' and i_we = '1') then
-				o_ack <= '1';
-				case i_addr is 
-					when "000" =>
-						cmd_reg <= i_data;
-					when "001" =>
-						data_tx_reg <= i_data;
-					when "010" =>
-						addr_h_reg <= i_data;
-					when "011" =>
-						addr_m_reg <= i_data;
-					when "100" =>
-						addr_l_reg <= i_data;
-					when others =>
-						null;
-				end case;
-			elsif (i_stb = '1' and i_we = '0') then
-				o_ack <= '1';
-				if(i_addr = "101") then
-					o_data <= data_rx_reg;
-				end if;
-			end if;
-		end if;
-	end process; -- manage_regs
 
 	--determine if more bytes are to be programmed on a page (used in page program commnad)
 	--page program on M25Pxx serial flash series can program 1-256 bytes with a single page program.
@@ -306,7 +238,7 @@ begin
 			case w_state is 
 				when IDLE =>
 					w_data_sreg <= (others => '1');
-					case cmd_reg is 
+					case i_cmd is 
 						when NOP =>
 							w_state <= IDLE;
 						when others => 
@@ -314,14 +246,14 @@ begin
 					end case;
 				when TX_CMD =>
 					w_dv <= '1';
-					w_data_sreg <= cmd_reg;
+					w_data_sreg <= i_cmd;
 					if(w_cnt_tx_neg = 1) then
 						w_cmd_done <= '1';
 					end if;
 					if(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7 and w_cmd_done = '1') then
 						w_tx_done <= '1';
 						w_cmd_done <= '0';
-						case cmd_reg is 
+						case i_cmd is 
 							when PAGE_PROGRAM | SECTOR_ERASE | RD_DATA | F_RD_DATA | WR_STATUS_REG | RD_STATUS_REG =>
 								w_state <= WAIT1;
 							when others =>
@@ -351,7 +283,7 @@ begin
 					end if;
 					if(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7 and w_addr_done = '1') then
 						w_addr_done <= '0';
-						case cmd_reg is 
+						case i_cmd is 
 							when SECTOR_ERASE | RD_DATA | F_RD_DATA  =>
 								w_state <= WAIT4;
 							when PAGE_PROGRAM =>
@@ -364,7 +296,6 @@ begin
 					if(w_cnt_tx_neg =1) then                 
 						w_tx_underway <= '1';
 					elsif(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7 and w_tx_underway = '1') then
-						--w_state <= WAIT8;
 						w_tx_underway <= '0';
 						w_state <= RX_DATA;
 					end if;
@@ -374,7 +305,7 @@ begin
 						w_tx_underway <= '1';
 					elsif(w_cnt_tx_neg = 0 and w_cnt_tx_neg_r = 7 and w_tx_underway = '1') then
 						w_tx_underway <= '0';
-						case cmd_reg is 
+						case i_cmd is 
 							when PAGE_PROGRAM =>
 								w_state <= WAIT6;
 							when others =>
@@ -386,27 +317,16 @@ begin
 						w_rx_done <= '1';
 						w_rx_underway <= '1';
 					elsif(w_cnt_rx_pos = 7 and w_cnt_rx_pos_r = 6 and w_rx_underway = '1') then
-					--elsif(w_cnt_rx_pos = 0 and w_cnt_rx_pos_r = 7 and w_rx_underway = '1') then
-						--w_rx_underway <= '0';
 						w_state <= WAIT8;
-						--case cmd_reg is 
-						--	when RD_DATA | F_RD_DATA =>
-						--		--w_state <= WAIT7;
-						--		w_state <= WAIT8;
-						--	--when RD_STATUS_REG =>
-						--	--	w_state <= 	WAIT5;					
-						--	when others => 
-						--		w_state <= WAIT5;
-						--end case;
 					end if;
 				when WAIT1 =>
-					case cmd_reg is 
+					case i_cmd is 
 						when  SECTOR_ERASE | PAGE_PROGRAM | RD_DATA | F_RD_DATA =>
 							w_state <= TX_ADDR_H;
-							w_data_sreg <= addr_h_reg;
+							w_data_sreg <= i_addr_h;
 						when WR_STATUS_REG => 
 							w_state <= TX_DATA;
-							w_data_sreg <= data_tx_reg;
+							w_data_sreg <= i_data;
 						when RD_STATUS_REG =>
 							w_state <= RX_DATA;
 						when others =>
@@ -414,13 +334,13 @@ begin
 					end case;
 				when WAIT2 =>
 					w_state <= TX_ADDR_M;
-					w_data_sreg <= addr_m_reg;
+					w_data_sreg <= i_addr_m;
 				when WAIT3 =>
 					w_state <= TX_ADDR_L;
-					w_data_sreg <= addr_l_reg;
+					w_data_sreg <= i_addr_l;
 				when WAIT4 =>
 					w_tx_done <= '1';
-					case cmd_reg is 
+					case i_cmd is 
 						when F_RD_DATA =>
 							w_state <= TX_DUMMY;
 							w_data_sreg <= (others => '0');
@@ -432,16 +352,15 @@ begin
 					end case;
 				when WAIT5 =>
 					data_rx_reg <= w_sr_rx_pos_sclk;
-					--o_data <= w_sr_rx_pos_sclk;
 					o_dv <= '1';
 					w_data_read <= w_sr_rx_pos_sclk;
 					w_state <= CLEAR_CMD;
 				when WAIT6 =>
-					case cmd_reg is 
+					case i_cmd is 
 						when PAGE_PROGRAM =>
 							if(w_new_data_to_tx = '1') then
 								w_state <= TX_DATA;
-								w_data_sreg <= data_tx_reg;
+								w_data_sreg <= i_data;
 							else
 								w_state <= CLEAR_CMD;
 							end if;
@@ -451,30 +370,19 @@ begin
 				when WAIT8 =>
 					if(w_cnt_rx_pos = 0 and w_cnt_rx_pos_r = 7 and w_rx_underway = '1') then
 						w_rx_underway <= '0';
-						--w_state <= WAIT7;
-						case cmd_reg is 
+						case i_cmd is 
 							when RD_DATA | F_RD_DATA =>
-								--w_state <= WAIT7;
-								w_state <= WAIT7;
-							--when RD_STATUS_REG =>
-							--	w_state <= 	WAIT5;					
+								w_state <= WAIT7;				
 							when others => 
 								w_state <= WAIT5;
 								SPI_CLK_CYCLES <= g_sys_clk/SPI_FREQ_REST;
 						end case;
 					end if;
-				--when WAIT8 =>
-					--data_rx_reg <= w_sr_rx_pos_sclk;		--<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-				--	o_data <= w_sr_rx_pos_sclk;
-				--	o_dv <= '1';
-				--	w_data_read <= w_sr_rx_pos_sclk;
-				--	w_state <= CLEAR_CMD;
 				when WAIT7 =>
 					w_data_read <= w_sr_rx_pos_sclk;
 					data_rx_reg <= w_sr_rx_pos_sclk;
-					--o_data <= w_sr_rx_pos_sclk;
 					o_dv <= '1';
-					case cmd_reg is
+					case i_cmd is
 						when RD_DATA | F_RD_DATA =>
 							if(w_new_rx_req = '1') then
 								w_state <= RX_DATA;

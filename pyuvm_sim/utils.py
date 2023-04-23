@@ -58,7 +58,7 @@ class FlashBfm(metaclass=utility_classes.Singleton):
 
     async def data_mon_bfm(self):
         while True:
-            await RisingEdge((self.dut.f_is_data_to_tx))
+            await RisingEdge((self.dut.wb_regs.f_is_data_to_tx))
             i_data = self.dut.i_data.value 
             self.data_mon_queue.put_nowait(i_data)
 
