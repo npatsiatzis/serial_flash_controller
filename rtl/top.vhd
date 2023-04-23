@@ -36,6 +36,8 @@ end top;
 architecture rtl of top is
 	signal q : std_ulogic;
 	signal f_is_data_to_tx : std_ulogic;
+	signal w_tx_done, w_rx_done : std_ulogic;
+	signal w_new_tx_req,w_new_rx_req : std_ulogic;
 	signal w_cmd_reg, w_tx_reg, w_addr_h_reg, w_addr_m_reg, w_addr_l_reg : std_ulogic_vector(7 downto 0);
 	signal w_flash_rd_data : std_ulogic_vector(7 downto 0);
 begin
@@ -56,12 +58,16 @@ begin
 
 		--data read from sdram
 		i_flash_rd_data =>w_flash_rd_data,
+		i_tx_done => w_tx_done,
+		i_rx_done => w_rx_done,
 
 		--ports for write regs to hierarchy
 		o_cmd_reg  =>w_cmd_reg,
 		o_addr_h_reg  =>w_addr_h_reg,
 		o_addr_m_reg  =>w_addr_m_reg,
 		o_addr_l_reg  =>w_addr_l_reg,
+		o_new_tx_req => w_new_tx_req,
+		o_new_rx_req => w_new_rx_req,
 		o_tx_reg =>w_tx_reg
 		);
 
@@ -74,9 +80,9 @@ begin
 	port map(
 	 		i_clk =>i_clk,
 	 		i_arstn =>i_arstn,
-	 		i_we =>i_we,
-	 		i_stb => i_stb,
-	 		i_addr =>i_addr,
+	 		--i_we =>i_we,
+	 		--i_stb => i_stb,
+	 		--i_addr =>i_addr,
 	 		i_cmd => w_cmd_reg,
 	 		i_addr_h => w_addr_h_reg,
 	 		i_addr_m => w_addr_m_reg,
@@ -85,6 +91,11 @@ begin
 	 		--o_ack => o_ack,
 	 		o_data =>w_flash_rd_data,
 
+	 		i_new_tx_req =>w_new_tx_req,
+	 		i_new_rx_req =>w_new_rx_req,
+
+	 		o_tx_done =>w_tx_done,
+	 		o_rx_done =>w_rx_done,
 	 		o_byte_tx_done =>o_byte_tx_done,
 	 		o_byte_rx_done =>o_byte_rx_done,
 	 		o_dv =>o_dv,

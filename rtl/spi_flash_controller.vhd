@@ -25,9 +25,9 @@ entity spi_flash_controller is
 			i_arstn : in std_ulogic;						--system reset
 
 			--wb (slave) interface
-			i_we : in std_ulogic;							--write enable for user registers
-			i_stb : in std_ulogic;							--input strobe, validates other intf signals
-			i_addr : in std_ulogic_vector(2 downto 0);		--address bus for user registers
+			--i_we : in std_ulogic;							--write enable for user registers
+			--i_stb : in std_ulogic;							--input strobe, validates other intf signals
+			--i_addr : in std_ulogic_vector(2 downto 0);		--address bus for user registers
 			i_cmd : in std_ulogic_vector(7 downto 0);
 			i_addr_h : in std_ulogic_vector(7 downto 0);
 			i_addr_m : in std_ulogic_vector(7 downto 0);
@@ -39,6 +39,12 @@ entity spi_flash_controller is
 			--interrupts
 			o_byte_tx_done : out std_ulogic;				--flag indicating end of transmit command
 			o_byte_rx_done : out std_ulogic;				--flag indicating end of receive command
+
+			i_new_tx_req : in std_ulogic;
+			i_new_rx_req : in std_ulogic;
+
+			o_tx_done : out std_ulogic;
+			o_rx_done : out std_ulogic;
 			o_dv : out std_ulogic;							--output data valid
 
 			--spi interface
@@ -146,7 +152,7 @@ begin
 	end process; -- cnt_bits_rx_pos
 
 	--indicate to the spi clock generation module when a continuous transaction is required
-	w_cont <= '1' when (w_state = WAIT1 or w_state = WAIT2 or w_state = WAIT3 or w_state = WAIT4 or w_state = WAIT6 or w_state = WAIT7 or (w_state = WAIT8 and w_new_rx_req = '1') or w_state = TX_DATA or w_state = TX_DUMMY or w_state = RX_DATA  or w_state = TX_ADDR_H or w_state = TX_ADDR_M or w_state = TX_ADDR_L) else '0';
+	w_cont <= '1' when (w_state = WAIT1 or w_state = WAIT2 or w_state = WAIT3 or w_state = WAIT4 or w_state = WAIT6 or w_state = WAIT7 or (w_state = WAIT8 and i_new_rx_req = '1') or w_state = TX_DATA or w_state = TX_DUMMY or w_state = RX_DATA  or w_state = TX_ADDR_H or w_state = TX_ADDR_M or w_state = TX_ADDR_L) else '0';
 
 	o_c <= w_sclk;
 	o_s_n <= w_ss_n;
@@ -171,45 +177,9 @@ begin
 	o_data <= data_rx_reg;
 
 
-	--determine if more bytes are to be programmed on a page (used in page program commnad)
-	--page program on M25Pxx serial flash series can program 1-256 bytes with a single page program.
-	--page program can be terminated (at byte boundary), by driving the chip-select signal high,
-	--even after programming just a single byte
-	--the intention to keep programming bytes is communicated to the controller via writting the
-	--data byte to be transmitted on USER REGISTER 1. the controller then uses this information 
-	--to inform the spi clock generation module that the continuous spi transaction should be continued	
-	detect_new_data_to_tx : process(i_clk,i_arstn) is
-	begin
-		if(i_arstn = '0') then
-			w_new_data_to_tx <= '0';
-		elsif (rising_edge(i_clk)) then
-			if(w_tx_done ='1') then             
-				w_new_data_to_tx <= '0';
-			elsif (i_stb = '1' and unsigned(i_addr) = 1 and i_we = '1') then
-				w_new_data_to_tx <= '1';
-			end if;
-		end if;
-	end process; -- detect_new_data_to_tx
 
-	--determine if more bytes are to be read from the flash (used in read data bytes (at higher speed))
-	--read dat bytes (at higher speed) on M25Pxx serial flash series can read any number of bytes
-	--starting from a single byte to reading the whole flash. Read dta bytes commands can be terminated
-	--at any time (no necessarily at byte boundary), by driving the chip-select signal high.
-	--the intention to keep reading bytes from the memory is communicated to the controller via activating
-	--(writting) USER REGISTER 5. the controller then uses this information 
-	--to inform the spi clock generation module that the continuous spi transaction should be continued 
-	detect_new_rx_request : process(i_clk,i_arstn) is
-	begin
-		if(i_arstn = '0') then 
-			w_new_rx_req <= '0';
-		elsif(rising_edge(i_clk)) then
-			if(w_rx_done = '1') then             
-				w_new_rx_req <= '0';
-			elsif (i_stb = '1' and  unsigned(i_addr) = 5 and i_we = '1') then
-				w_new_rx_req <= '1';
-			end if;
-		end if;
-	end process; -- detect_new_rx_request
+	o_tx_done <= w_tx_done;
+	o_rx_done <= w_rx_done;
 
 
 	o_byte_tx_done <= w_tx_done;
@@ -358,7 +328,7 @@ begin
 				when WAIT6 =>
 					case i_cmd is 
 						when PAGE_PROGRAM =>
-							if(w_new_data_to_tx = '1') then
+							if(i_new_tx_req = '1') then
 								w_state <= TX_DATA;
 								w_data_sreg <= i_data;
 							else
@@ -384,7 +354,7 @@ begin
 					o_dv <= '1';
 					case i_cmd is
 						when RD_DATA | F_RD_DATA =>
-							if(w_new_rx_req = '1') then
+							if(i_new_rx_req = '1') then
 								w_state <= RX_DATA;
 							else
 								w_state <= WAIT7;

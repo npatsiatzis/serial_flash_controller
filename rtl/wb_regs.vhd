@@ -16,14 +16,18 @@ entity wb_regs is
 		o_ack : out std_ulogic;
 		o_data : out std_ulogic_vector(7 downto 0);
 
-		--data read from sdram
+		--data read from flash
 		i_flash_rd_data : in std_ulogic_vector(7 downto 0);
+		i_tx_done : in std_ulogic;
+		i_rx_done : in std_ulogic;
 
 		--ports for write regs to hierarchy
 		o_cmd_reg  : out std_ulogic_vector(7 downto 0);
 		o_addr_h_reg  : out std_ulogic_vector(7 downto 0);
 		o_addr_m_reg  : out std_ulogic_vector(7 downto 0);
 		o_addr_l_reg  : out std_ulogic_vector(7 downto 0);
+		o_new_tx_req : out std_ulogic;
+		o_new_rx_req : out std_ulogic;
 		o_tx_reg : out std_ulogic_vector(7 downto 0)); 
 end wb_regs;
 
@@ -99,5 +103,47 @@ begin
 	o_addr_m_reg <= addr_m_reg;
 	o_addr_l_reg <= addr_l_reg;
 	o_tx_reg <= data_tx_reg;
+
+	--determine if more bytes are to be programmed on a page (used in page program commnad)
+	--page program on M25Pxx serial flash series can program 1-256 bytes with a single page program.
+	--page program can be terminated (at byte boundary), by driving the chip-select signal high,
+	--even after programming just a single byte
+	--the intention to keep programming bytes is communicated to the controller via writting the
+	--data byte to be transmitted on USER REGISTER 1. the controller then uses this information 
+	--to inform the spi clock generation module that the continuous spi transaction should be continued	
+	detect_new_data_to_tx : process(i_clk,i_arstn) is
+	begin
+		if(i_arstn = '0') then
+			o_new_tx_req <= '0';
+		elsif (rising_edge(i_clk)) then
+			if(i_tx_done ='1') then             
+				o_new_tx_req <= '0';
+			elsif (i_stb = '1' and unsigned(i_addr) = 1 and i_we = '1') then
+				o_new_tx_req <= '1';
+			end if;
+		end if;
+	end process; -- detect_new_data_to_tx
+
+
+
+	--determine if more bytes are to be read from the flash (used in read data bytes (at higher speed))
+	--read dat bytes (at higher speed) on M25Pxx serial flash series can read any number of bytes
+	--starting from a single byte to reading the whole flash. Read dta bytes commands can be terminated
+	--at any time (no necessarily at byte boundary), by driving the chip-select signal high.
+	--the intention to keep reading bytes from the memory is communicated to the controller via activating
+	--(writting) USER REGISTER 5. the controller then uses this information 
+	--to inform the spi clock generation module that the continuous spi transaction should be continued 
+	detect_new_rx_request : process(i_clk,i_arstn) is
+	begin
+		if(i_arstn = '0') then 
+			o_new_rx_req <= '0';
+		elsif(rising_edge(i_clk)) then
+			if(i_rx_done = '1') then             
+				o_new_rx_req <= '0';
+			elsif (i_stb = '1' and  unsigned(i_addr) = 5 and i_we = '1') then
+				o_new_rx_req <= '1';
+			end if;
+		end if;
+	end process; -- detect_new_rx_request
 
 end rtl;
