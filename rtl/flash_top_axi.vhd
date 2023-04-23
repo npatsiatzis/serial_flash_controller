@@ -146,7 +146,7 @@ begin
 	 		o_dv =>o_dv,
 
 
-	 		i_dq =>q,
+	 		i_dq =>w_dq,
 	 		o_c =>o_c,
 	 		o_s_n =>o_s_n,
 	 		o_dq => o_dq

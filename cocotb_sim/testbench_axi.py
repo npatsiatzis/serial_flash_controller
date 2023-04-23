@@ -333,668 +333,800 @@ async def test_status_reg(dut):
 
 
 
-# @cocotb.test()
-# async def test_erase(dut):
-# 	"""Check results for serial flash controller of bulk erase command after writing and reading the flash"""
-# 	# write enable -> write random data to random address -> read data from that random address
-# 	# check that we have read correct data (5 repetitions)
-# 	# sector erase (bulk erase in comments)
-# 	# read data from the sector, check that that the read byte's value is 255 (all 1s)
+@cocotb.test()
+async def test_erase(dut):
+	"""Check results for serial flash controller of bulk erase command after writing and reading the flash"""
+	# write enable -> write random data to random address -> read data from that random address
+	# check that we have read correct data (5 repetitions)
+	# sector erase (bulk erase in comments)
+	# read data from the sector, check that that the read byte's value is 255 (all 1s)
 
-# 	# commands exercized : write enable, page program, read, sector erase (bulk erase in comments)
+	# commands exercized : write enable, page program, read, sector erase (bulk erase in comments)
 
-# 	cocotb.start_soon(Clock(dut.S_AXI_ACLK, period_ns, units="ns").start())
-# 	await reset(dut,5)	
+	cocotb.start_soon(Clock(dut.S_AXI_ACLK, period_ns, units="ns").start())
+	await reset(dut,5)	
 
-# 	lst = []
+	lst = []
 
 
 
-# 	for i in range(5):
+	for i in range(5):
+		await driver_write(dut,0,6)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 6		# cmd WR ENABLE
+
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 	
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 6		# cmd WR ENABLE
+		await driver_write(dut,0,2)
 
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-	
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 2		# cmd page program
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 2		# cmd page program
 
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
-# 		addr = random.randint(165,2**8-1)
+		addr = random.randint(165,2**8-1)
 
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 2 
-# 		dut.i_data.value = 0		# addr high
+		await driver_write(dut,2,0)
 
-# 		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 2 
+		# dut.i_data.value = 0		# addr high
 
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 3 
-# 		dut.i_data.value = 0		# addr m
+		await RisingEdge(dut.S_AXI_ACLK)
 
-# 		await RisingEdge(dut.S_AXI_ACLK)
+		await driver_write(dut,3,0)
 
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 4 
-# 		dut.i_data.value = addr		# addr low
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 3 
+		# dut.i_data.value = 0		# addr m
 
-# 		await RisingEdge(dut.S_AXI_ACLK)
+		await RisingEdge(dut.S_AXI_ACLK)
 
-# 		data = random.randint(165,2**8-1)
-# 		lst.append(data)
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 1
-# 		dut.i_data.value = data 
-# 		await RisingEdge(dut.S_AXI_ACLK)
+		await driver_write(dut,4,addr)
 
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 4 
+		# dut.i_data.value = addr		# addr low
 
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 7
-# 		dut.i_data.value = 255
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+		await RisingEdge(dut.S_AXI_ACLK)
 
+		data = random.randint(165,2**8-1)
+		lst.append(data)
 
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0
-# 		dut.i_data.value = 255
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await ClockCycles(dut.S_AXI_ACLK,5)
+		await driver_write(dut,1,data)
 
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 1
+		# dut.i_data.value = data 
+		await RisingEdge(dut.S_AXI_ACLK)
 
+		await driver_write(dut,7,255)
 
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 3		# cmd RD data
-# 		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 7
+		# dut.i_data.value = 255
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
 
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 2 
-# 		dut.i_data.value = 0		# addr high
+		await driver_write(dut,0,255)
 
-# 		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0
+		# dut.i_data.value = 255
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await ClockCycles(dut.S_AXI_ACLK,5)
 
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 3 
-# 		dut.i_data.value = 0		# addr m
+		await driver_write(dut,0,3)
 
-# 		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 3		# cmd RD data
+		await RisingEdge(dut.S_AXI_ACLK)
 
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 4 
-# 		dut.i_data.value = addr		# addr low
+		await driver_write(dut,2,0)
 
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 2 
+		# dut.i_data.value = 0		# addr high
 
-# 		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 255		# NOP command
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_dv)
+		await RisingEdge(dut.S_AXI_ACLK)
 
-# 		dut.i_we.value = 0
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 5 		# read rx data
-# 		dut.i_data.value = 0
-# 		await RisingEdge(dut.o_ack)				
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
+		await driver_write(dut,3,0)
 
-# 		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 3 
+		# dut.i_data.value = 0		# addr m
 
-# 	await ClockCycles(dut.S_AXI_ACLK,5)
+		await RisingEdge(dut.S_AXI_ACLK)
 
-	
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 0 
-# 	dut.i_data.value = 6		# cmd WR ENABLE
+		await driver_write(dut,4,addr)
 
-# 	await RisingEdge(dut.S_AXI_ACLK)
-# 	dut.i_stb.value = 0
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 4 
+		# dut.i_data.value = addr		# addr low
 
-# 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
 
-# 	# dut.i_we.value = 1
-# 	# dut.i_stb.value = 1
-# 	# dut.i_addr.value = 0 
-# 	# dut.i_data.value = 199		# cmd bulk erase (no need to specify A23-A0)
-
-# 	#or go for an erase of a specific sector (specify sector by A23-A0)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 0 
-# 	dut.i_data.value = 216		# cmd sector erase
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-# 	dut.i_stb.value = 0
-# 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-# 	addr = random.randint(165,2**8-1)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 2 
-# 	dut.i_data.value = 0		# addr high
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 3 
-# 	dut.i_data.value = 0		# addr m
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 4 
-# 	dut.i_data.value = addr		# addr low
-
-
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-# 	dut.i_stb.value = 0
-
-# 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 0 
-# 	dut.i_data.value = 3		# cmd RD data
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 2 
-# 	dut.i_data.value = 0		# addr high
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 3 
-# 	dut.i_data.value = 0		# addr m
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 4 
-# 	dut.i_data.value = addr		# addr low
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-# 	dut.i_stb.value = 0
-
-# 	await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 0 
-# 	dut.i_data.value = 255		# NOP command
-# 	await RisingEdge(dut.S_AXI_ACLK)
-# 	dut.i_stb.value = 0
-# 	await FallingEdge(dut.o_dv)
-
-# 	dut.i_we.value = 0
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 5 		# read rx data
-# 	dut.i_data.value = 0
-# 	await RisingEdge(dut.o_ack)				
-# 	await RisingEdge(dut.S_AXI_ACLK)
-# 	dut.i_stb.value = 0
-
-# 	assert not (255 != int(dut.o_data.value)),"Different expected to actual read data"
-
-# 	await ClockCycles(dut.S_AXI_ACLK,5)
-
-
-
-# @cocotb.test()
-# async def test_single_r_w(dut):
-# 	"""Check results for serial flash controller writing and reading 1 item at a time"""
-# 	# write enable -> write random data to random address -> read data from that random address
-# 	# check that we have read correct data (50 repetitions) 
-# 	# write and reads here are single, they do not occur in burst like fashion
-
-# 	# commands exercized : write enable, page program, read
-# 	cocotb.start_soon(Clock(dut.S_AXI_ACLK, period_ns, units="ns").start())
-# 	await reset(dut,5)	
-
-# 	lst = []
-
-
-# 	for i in range(50):
-	
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 6		# cmd WR ENABLE
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-	
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 2		# cmd page program
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-# 		addr = random.randint(165,2**8-1)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 2 
-# 		dut.i_data.value = 0		# addr high
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 3 
-# 		dut.i_data.value = 0		# addr m
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 4 
-# 		dut.i_data.value = addr		# addr low
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		data = random.randint(165,2**8-1)
-# 		lst.append(data)
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 1
-# 		dut.i_data.value = data 
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 7
-# 		dut.i_data.value = 255
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0
-# 		dut.i_data.value = 255
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await ClockCycles(dut.S_AXI_ACLK,5)
-
-
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 3		# cmd RD data
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 2 
-# 		dut.i_data.value = 0		# addr high
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 3 
-# 		dut.i_data.value = 0		# addr m
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 4 
-# 		dut.i_data.value = addr		# addr low
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-
-# 		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 255		# NOP command
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_dv)
-
-# 		dut.i_we.value = 0
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 5 		# read rx data
-# 		dut.i_data.value = 0
-# 		await RisingEdge(dut.o_ack)				
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-
-# 		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
-
-
-
-
-# @cocotb.test()
-# async def test_fast_read_single_r_w(dut):
-# 	"""Check results for serial flash controller writing and reading (fast read) 1 item at a time"""
-# 	# write enable -> write random data to random address -> fast read data from that random address
-# 	# check that we have read correct data (50 repetitions) 
-# 	# write and reads (fast) here are single, they do not occur in burst like fashion
-
-# 	# commands exercized : write enable, page program, read
-# 	cocotb.start_soon(Clock(dut.S_AXI_ACLK, period_ns, units="ns").start())
-# 	await reset(dut,5)	
-
-# 	lst = []
-
-
-# 	for i in range(50):
-	
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 6		# cmd WR ENABLE
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-	
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 2		# cmd page program
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-# 		addr = random.randint(165,2**8-1)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 2 
-# 		dut.i_data.value = 0		# addr high
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 3 
-# 		dut.i_data.value = 0		# addr m
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 4 
-# 		dut.i_data.value = addr		# addr low
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		data = random.randint(165,2**8-1)
-# 		lst.append(data)
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 1
-# 		dut.i_data.value = data 
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 7
-# 		dut.i_data.value = 255
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0
-# 		dut.i_data.value = 255
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await ClockCycles(dut.S_AXI_ACLK,5)
-
-
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 11		# cmd RD data
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 2 
-# 		dut.i_data.value = 0		# addr high
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 3 
-# 		dut.i_data.value = 0		# addr m
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 4 
-# 		dut.i_data.value = addr		# addr low
-
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-
-# 		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 0 
-# 		dut.i_data.value = 255		# NOP command
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_dv)
-
-# 		dut.i_we.value = 0
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 5 		# read rx data
-# 		dut.i_data.value = 0
-# 		await RisingEdge(dut.o_ack)				
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-	
-# 		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
-
-
-
-
-# @cocotb.test()
-# async def test_page_r_w(dut):
-# 	"""Check results and coverage for serial flash controller writing and reading whole pages"""
-# 	# write enable -> write random data to a page (progr. whole page) ->
-# 	# read data from that page (read whole page)
-# 	# check that we have read correct data  
-# 	# write and reads here occur a page at a time
-
-# 	# commands exercized : write enable, page program, read
-
-# 	cocotb.start_soon(Clock(dut.S_AXI_ACLK, period_ns, units="ns").start())
-# 	await reset(dut,5)	
-
-# 	lst = []
-
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 0 
-# 	dut.i_data.value = 6		# cmd WR ENABLE
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-# 	dut.i_stb.value = 0
-
-# 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-	
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 0 
-# 	dut.i_data.value = 2		# cmd page program
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-# 	dut.i_stb.value = 0
-# 	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 2 
-# 	dut.i_data.value = 0		# addr high
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 3 
-# 	dut.i_data.value = 0		# addr m
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 4 
-# 	dut.i_data.value = 0		# addr low
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-
-
-# 	# while(full != True):
-# 	for i in range(16):				#number of bytes in page in sim. model
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 1
-# 		data = random.randint(0,2**4-1)
-# 		while(data in covered_valued):
-# 			data = random.randint(0,2**4-1) 
-# 		dut.i_data.value = data		# data to tx
-# 		number_cover(data)
-# 		coverage_db["top.i_data"].add_threshold_callback(notify, 100)
-# 		lst.append(data)
-# 		await RisingEdge(dut.S_AXI_ACLK)
-
-
-# 		dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 7
-# 		dut.i_data.value = 255
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		dut.i_stb.value = 0
-# 		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
-
-
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 0
-# 	dut.i_data.value = 255
-# 	await RisingEdge(dut.S_AXI_ACLK)
-# 	dut.i_stb.value = 0
-# 	await ClockCycles(dut.S_AXI_ACLK,100)
-
-
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 0 
-# 	dut.i_data.value = 3		# cmd RD data
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 2 
-# 	dut.i_data.value = 0		# addr high
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 3 
-# 	dut.i_data.value = 0		# addr m
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-
-# 	dut.i_we.value = 1
-# 	dut.i_stb.value = 1
-# 	dut.i_addr.value = 4 
-# 	dut.i_data.value = 0		# addr low
-
-# 	await RisingEdge(dut.S_AXI_ACLK)
-# 	dut.i_stb.value = 0
-# 	await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
-
-# 	for i in range(16):
-# 		# dut.i_we.value = 1
-# 		dut.i_stb.value = 1
-# 		dut.i_we.value = 1
-# 		dut.i_addr.value = 5 
-# 		dut.i_data.value = 0		# data to rx
-
-# 		await RisingEdge(dut.o_dv)
-# 		await RisingEdge(dut.S_AXI_ACLK)
+		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
 		
-# 		dut.i_we.value = 0
-# 		dut.i_stb.value = 1
-# 		dut.i_addr.value = 5 		# read rx data
-# 		dut.i_data.value = 0
-# 		await RisingEdge(dut.S_AXI_ACLK)
-# 		await RisingEdge(dut.S_AXI_ACLK)	
+		await driver_write(dut,0,255)
 
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 255		# NOP command
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_dv)
 
-# 		expected_value = lst.pop(0)
-# 		assert not (expected_value != int(dut.o_data.value)),"Different expected to actual read data"
+		await driver_read(dut,5)
+
+		# dut.i_we.value = 0
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 5 		# read rx data
+		# dut.i_data.value = 0
+		# await RisingEdge(dut.o_ack)				
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+
+		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
+
+	await ClockCycles(dut.S_AXI_ACLK,5)
 
 	
-# 	# coverage_db.report_coverage(cocotb.log.info,bins=True)
-# 	coverage_db.export_to_xml(filename="coverage.xml")
+	await driver_write(dut,0,6)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 0 
+	# dut.i_data.value = 6		# cmd WR ENABLE
+
+	await RisingEdge(dut.S_AXI_ACLK)
+	# dut.i_stb.value = 0
+
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 0 
+	# dut.i_data.value = 199		# cmd bulk erase (no need to specify A23-A0)
+
+	#or go for an erase of a specific sector (specify sector by A23-A0)
+
+	await driver_write(dut,0,216)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 0 
+	# dut.i_data.value = 216		# cmd sector erase
+
+	await RisingEdge(dut.S_AXI_ACLK)
+	# dut.i_stb.value = 0
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	addr = random.randint(165,2**8-1)
+
+	await driver_write(dut,2,0)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 2 
+	# dut.i_data.value = 0		# addr high
+
+	await RisingEdge(dut.S_AXI_ACLK)
+
+	await driver_write(dut,3,0)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 3 
+	# dut.i_data.value = 0		# addr m
+
+	await RisingEdge(dut.S_AXI_ACLK)
+
+	await driver_write(dut,4,addr)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 4 
+	# dut.i_data.value = addr		# addr low
+
+
+
+	await RisingEdge(dut.S_AXI_ACLK)
+	# dut.i_stb.value = 0
+
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	await driver_write(dut,0,3)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 0 
+	# dut.i_data.value = 3		# cmd RD data
+	await RisingEdge(dut.S_AXI_ACLK)
+
+	await driver_write(dut,2,0)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 2 
+	# dut.i_data.value = 0		# addr high
+
+	await RisingEdge(dut.S_AXI_ACLK)
+
+	await driver_write(dut,3,0)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 3 
+	# dut.i_data.value = 0		# addr m
+
+	await RisingEdge(dut.S_AXI_ACLK)
+
+	await driver_write(dut,4,addr)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 4 
+	# dut.i_data.value = addr		# addr low
+
+	await RisingEdge(dut.S_AXI_ACLK)
+	# dut.i_stb.value = 0
+
+	await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
+	
+	await driver_write(dut,0,255)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 0 
+	# dut.i_data.value = 255		# NOP command
+	await RisingEdge(dut.S_AXI_ACLK)
+	# dut.i_stb.value = 0
+	await FallingEdge(dut.o_dv)
+
+	await driver_read(dut,5)
+
+	# dut.i_we.value = 0
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 5 		# read rx data
+	# dut.i_data.value = 0
+	# await RisingEdge(dut.o_ack)				
+	await RisingEdge(dut.S_AXI_ACLK)
+	# dut.i_stb.value = 0
+
+	assert not (255 != int(dut.o_data.value)),"Different expected to actual read data"
+
+	await ClockCycles(dut.S_AXI_ACLK,5)
+
+
+
+@cocotb.test()
+async def test_single_r_w(dut):
+	"""Check results for serial flash controller writing and reading 1 item at a time"""
+	# write enable -> write random data to random address -> read data from that random address
+	# check that we have read correct data (50 repetitions) 
+	# write and reads here are single, they do not occur in burst like fashion
+
+	# commands exercized : write enable, page program, read
+	cocotb.start_soon(Clock(dut.S_AXI_ACLK, period_ns, units="ns").start())
+	await reset(dut,5)	
+
+	lst = []
+
+
+	for i in range(50):
+	
+		await driver_write(dut,0,6)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 6		# cmd WR ENABLE
+
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+		await driver_write(dut,0,2)
+		
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 2		# cmd page program
+
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+		addr = random.randint(165,2**8-1)
+
+		await driver_write(dut,2,0)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 2 
+		# dut.i_data.value = 0		# addr high
+
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,3,0)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 3 
+		# dut.i_data.value = 0		# addr m
+
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,4,addr)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 4 
+		# dut.i_data.value = addr		# addr low
+
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		data = random.randint(165,2**8-1)
+		lst.append(data)
+
+		await driver_write(dut,1,data)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 1
+		# dut.i_data.value = data 
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,7,255)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 7
+		# dut.i_data.value = 255
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+		await driver_write(dut,0,255)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0
+		# dut.i_data.value = 255
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await ClockCycles(dut.S_AXI_ACLK,5)
+
+		await driver_write(dut,0,3)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 3		# cmd RD data
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,2,0)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 2 
+		# dut.i_data.value = 0		# addr high
+
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,3,0)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 3 
+		# dut.i_data.value = 0		# addr m
+
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,4,addr)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 4 
+		# dut.i_data.value = addr		# addr low
+
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+
+		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
+		
+		await driver_write(dut,0,255)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 255		# NOP command
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_dv)
+
+		await driver_read(dut,5)
+
+		# dut.i_we.value = 0
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 5 		# read rx data
+		# dut.i_data.value = 0
+		# await RisingEdge(dut.o_ack)				
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+
+		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
+
+
+
+
+@cocotb.test()
+async def test_fast_read_single_r_w(dut):
+	"""Check results for serial flash controller writing and reading (fast read) 1 item at a time"""
+	# write enable -> write random data to random address -> fast read data from that random address
+	# check that we have read correct data (50 repetitions) 
+	# write and reads (fast) here are single, they do not occur in burst like fashion
+
+	# commands exercized : write enable, page program, read
+	cocotb.start_soon(Clock(dut.S_AXI_ACLK, period_ns, units="ns").start())
+	await reset(dut,5)	
+
+	lst = []
+
+
+	for i in range(50):
+	
+		await driver_write(dut,0,6)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 6		# cmd WR ENABLE
+
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+		await driver_write(dut,0,2)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 2		# cmd page program
+
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+		addr = random.randint(165,2**8-1)
+
+		await driver_write(dut,2,0)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 2 
+		# dut.i_data.value = 0		# addr high
+
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,3,0)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 3 
+		# dut.i_data.value = 0		# addr m
+
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,4,addr)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 4 
+		# dut.i_data.value = addr		# addr low
+
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		data = random.randint(165,2**8-1)
+		lst.append(data)
+		
+		await driver_write(dut,1,data)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 1
+		# dut.i_data.value = data 
+		await RisingEdge(dut.S_AXI_ACLK)
+
+
+		await driver_write(dut,7,255)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 7
+		# dut.i_data.value = 255
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+		await driver_write(dut,0,255)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0
+		# dut.i_data.value = 255
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await ClockCycles(dut.S_AXI_ACLK,5)
+
+		await driver_write(dut,0,11)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 11		# cmd RD data
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,2,0)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 2 
+		# dut.i_data.value = 0		# addr high
+
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,3,0)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 3 
+		# dut.i_data.value = 0		# addr m
+
+		await RisingEdge(dut.S_AXI_ACLK)
+
+		await driver_write(dut,4,addr)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 4 
+		# dut.i_data.value = addr		# addr low
+
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+
+		await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
+		
+		await driver_write(dut,0,255)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 0 
+		# dut.i_data.value = 255		# NOP command
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_dv)
+
+		await driver_read(dut,5)
+
+		# dut.i_we.value = 0
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 5 		# read rx data
+		# dut.i_data.value = 0
+		# await RisingEdge(dut.o_ack)				
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+	
+		assert not (data != int(dut.o_data.value)),"Different expected to actual read data"
+
+
+
+
+@cocotb.test()
+async def test_page_r_w(dut):
+	"""Check results and coverage for serial flash controller writing and reading whole pages"""
+	# write enable -> write random data to a page (progr. whole page) ->
+	# read data from that page (read whole page)
+	# check that we have read correct data  
+	# write and reads here occur a page at a time
+
+	# commands exercized : write enable, page program, read
+
+	cocotb.start_soon(Clock(dut.S_AXI_ACLK, period_ns, units="ns").start())
+	await reset(dut,5)	
+
+	lst = []
+
+
+	await driver_write(dut,0,6)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 0 
+	# dut.i_data.value = 6		# cmd WR ENABLE
+
+	await RisingEdge(dut.S_AXI_ACLK)
+	# dut.i_stb.value = 0
+
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+	
+	await driver_write(dut,0,2)	
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 0 
+	# dut.i_data.value = 2		# cmd page program
+
+	await RisingEdge(dut.S_AXI_ACLK)
+	# dut.i_stb.value = 0
+	await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+	await driver_write(dut,2,0)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 2 
+	# dut.i_data.value = 0		# addr high
+
+	await RisingEdge(dut.S_AXI_ACLK)
+
+	await driver_write(dut,3,0)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 3 
+	# dut.i_data.value = 0		# addr m
+
+	await RisingEdge(dut.S_AXI_ACLK)
+
+	await driver_write(dut,4,0)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 4 
+	# dut.i_data.value = 0		# addr low
+
+	await RisingEdge(dut.S_AXI_ACLK)
+
+
+
+	# while(full != True):
+	for i in range(16):				#number of bytes in page in sim. model
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 1
+		data = random.randint(0,2**4-1)
+		while(data in covered_valued):
+			data = random.randint(0,2**4-1) 
+		# dut.i_data.value = data		# data to tx
+
+		await driver_write(dut,1,data)
+
+		number_cover(data)
+		coverage_db["top.i_data"].add_threshold_callback(notify, 100)
+		lst.append(data)
+		await RisingEdge(dut.S_AXI_ACLK)
+
+
+		await driver_write(dut,7,255)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 7
+		# dut.i_data.value = 255
+		await RisingEdge(dut.S_AXI_ACLK)
+		# dut.i_stb.value = 0
+		await FallingEdge(dut.o_byte_tx_done)	# wait for the data byte to start transfer
+
+
+	await driver_write(dut,0,255)
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 0
+	# dut.i_data.value = 255
+	await RisingEdge(dut.S_AXI_ACLK)
+	# dut.i_stb.value = 0
+	await ClockCycles(dut.S_AXI_ACLK,100)
+
+
+	await driver_write(dut,0,3)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 0 
+	# dut.i_data.value = 3		# cmd RD data
+	await RisingEdge(dut.S_AXI_ACLK)
+
+	await driver_write(dut,2,0)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 2 
+	# dut.i_data.value = 0		# addr high
+
+	await RisingEdge(dut.S_AXI_ACLK)
+
+	await driver_write(dut,3,0)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 3 
+	# dut.i_data.value = 0		# addr m
+
+	await RisingEdge(dut.S_AXI_ACLK)
+
+	await driver_write(dut,4,0)
+
+	# dut.i_we.value = 1
+	# dut.i_stb.value = 1
+	# dut.i_addr.value = 4 
+	# dut.i_data.value = 0		# addr low
+
+	await RisingEdge(dut.S_AXI_ACLK)
+	# dut.i_stb.value = 0
+	await FallingEdge(dut.o_byte_rx_done)	# wait for the data byte to start transfer
+
+	for i in range(16):
+			
+
+		dut.S_AXI_AWVALID.value = 1
+		dut.S_AXI_AWADDR.value = 5
+		dut.S_AXI_WVALID.value = 1
+		dut.S_AXI_WDATA.value = 0          
+		dut.S_AXI_BREADY.value = 1         
+		await RisingEdge(dut.S_AXI_ACLK)
+		await RisingEdge(dut.S_AXI_BVALID)
+
+		# dut.i_we.value = 1
+		# dut.i_stb.value = 1
+		# dut.i_we.value = 1
+		# dut.i_addr.value = 5 
+		# dut.i_data.value = 0		# data to rx
+
+		await RisingEdge(dut.o_dv)
+		await RisingEdge(dut.S_AXI_ACLK)
+		
+		await driver_read(dut,5)
+
+		# dut.i_we.value = 0
+		# dut.i_stb.value = 1
+		# dut.i_addr.value = 5 		# read rx data
+		# dut.i_data.value = 0
+		await RisingEdge(dut.S_AXI_ACLK)
+		await RisingEdge(dut.S_AXI_ACLK)	
+
+
+		expected_value = lst.pop(0)
+		assert not (expected_value != int(dut.o_data.value)),"Different expected to actual read data"
+
+	
+	# coverage_db.report_coverage(cocotb.log.info,bins=True)
+	coverage_db.export_to_xml(filename="coverage.xml")
