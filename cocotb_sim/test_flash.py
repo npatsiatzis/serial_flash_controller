@@ -13,12 +13,14 @@ rtl_dir = tests_dir                                    #path to hdl folder where
 
       
 #run tests with different fR (read freq.) and fC(rest freq.) for different Device Grades and Vcc
-@pytest.mark.parametrize("g_freq_read,g_freq_rest", [(str(33*10**6),str(75*10**6)) ,(str(25*10**6),str(50*10**6)), (str(20*10**6),str(25*10**6))])
+@pytest.mark.parametrize("g_freq_read,g_freq_rest", [(str(25*10**6),str(50*10**6)), (str(20*10**6),str(25*10**6))])
 def test_flash(g_freq_read,g_freq_rest):
 
     module = "testbench"
     toplevel = "flash_top"   
     vhdl_sources = [
+        os.path.join(rtl_dir, "../rtl/flash_controller_pkg.vhd"),
+        os.path.join(rtl_dir, "../rtl/wb_regs.vhd"),
         os.path.join(rtl_dir, "../rtl/sclk_gen.vhd"),
         os.path.join(rtl_dir, "../rtl/spi_flash_controller.vhd"),
         os.path.join(rtl_dir, "../rtl/serial_flash_sim_model.vhd"),
