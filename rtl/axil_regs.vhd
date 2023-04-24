@@ -98,7 +98,7 @@ begin
 	axil_write_ready <= axil_awready;
 	axil_wdata <= S_AXI_WDATA;
 	--axil_waddr <= S_AXI_AWADDR(S_AXI_AWADDR'high downto ADDR_LSB);
-	axil_waddr <= S_AXI_AWADDR(S_AXI_AWADDR'high downto 0);
+	axil_waddr <= S_AXI_AWADDR;
 	axil_wstrb <= S_AXI_WSTRB;
 
 	manage_b_channel : process(i_clk,i_arst) is
@@ -122,7 +122,7 @@ begin
 	S_AXI_ARREADY <= axil_arready;
 	axil_read_ready <= S_AXI_ARVALID and S_AXI_ARREADY;
 	--axil_raddr <= S_AXI_ARADDR(S_AXI_ARADDR'high downto ADDR_LSB);
-	axil_raddr <= S_AXI_ARADDR(S_AXI_ARADDR'high downto 0);
+	axil_raddr <= S_AXI_ARADDR;
 
 	manage_r_channel : process(i_clk,i_arst) is
 	begin
@@ -152,13 +152,17 @@ begin
 	--			   3 			|	data transfer register (i_we = '1')/ receive i2c data register (i_we = '0') 
 
 
-	f_is_data_to_tx <= '1' when (S_AXI_WVALID = '1' and S_AXI_AWVALID = '1' and unsigned(axil_waddr) = 1) else '0';
+	f_is_data_to_tx <= '1' when (S_AXI_WVALID = '1' and S_AXI_AWVALID = '1' and unsigned(S_AXI_AWADDR) = 1) else '0';
 
 	manage_write_regs : process(i_clk,i_arst) is
 		variable loc_addr : std_ulogic_vector(2 downto 0);
 	begin
 		if(i_arst = '1') then
-			null;
+			cmd_reg <= NOP;
+			data_tx_reg <= (others => '0');
+			addr_h_reg <= (others => '0');
+			addr_m_reg <= (others => '0');
+			addr_l_reg <= (others => '0');
 		elsif (rising_edge(i_clk)) then
 			loc_addr := axil_waddr(2 downto 0);
 			if(axil_write_ready = '1') then
