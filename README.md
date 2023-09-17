@@ -24,7 +24,7 @@ This is a short tabular description of the contents of each folder in the repo.
 | [rtl](https://github.com/npatsiatzis/serial_flash_controller/tree/main/rtl/VHDL) | VHDL RTL implementation files |
 | [cocotb_sim](https://github.com/npatsiatzis/serial_flash_controller/tree/main/cocotb_sim) | Functional Verification with CoCoTB (Python-based) |
 | [pyuvm_sim](https://github.com/npatsiatzis/serial_flash_controller/tree/main/pyuvm_sim) | Functional Verification with pyUVM (Python impl. of UVM standard) |
-<!-- 
+
 
 This is the tree view of the strcture of the repo.
 <pre>
@@ -39,4 +39,4 @@ This is the tree view of the strcture of the repo.
  href="https://github.com/npatsiatzis/serial_flash_controller/tree/main/pyuvm_sim">pyuvm_sim</a></b></font>
     ├── Makefile
     └── python files
-</pre> -->
+</pre>
